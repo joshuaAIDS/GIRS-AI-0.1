@@ -16,8 +16,8 @@ logger = logging.getLogger("IGIRS.BargeIn")
 class BargeInMonitor:
     def __init__(
         self,
-        energy_threshold: float = 0.075,
-        consecutive_frames_required: int = 5,
+        energy_threshold: float = 0.240,
+        consecutive_frames_required: int = 8,
         sample_rate: int = 16000,
         block_size: int = 512
     ):
@@ -27,7 +27,9 @@ class BargeInMonitor:
         self.sample_rate: int = sample_rate
         self.block_size: int = block_size
 
-        self.enabled: bool = True
+        # Disabled by default so laptop speakers do not self-interrupt speech.
+        # Spacebar, Escape, and 3D Orb Tap always remain 100% active.
+        self.enabled: bool = False
         self._is_monitoring: bool = False
         self._stream = None
         self._on_barge_in: Optional[Callable[[], None]] = None
@@ -36,37 +38,54 @@ class BargeInMonitor:
 
         # Playback Timing & Settling Guard
         self._monitor_start_time: float = 0.0
-        self._settling_window_sec: float = 0.30   # Ignore initial audio buffer / speaker pop
+        self._settling_window_sec: float = 0.60   # Ignore initial audio buffer / speaker attack
         self._last_barge_in_time: float = 0.0
-        self._cooldown_seconds: float = 0.5
-        self._sensitivity_mode: str = "balanced"
+        self._cooldown_seconds: float = 0.6
+        self._sensitivity_mode: str = "off"
 
     def set_enabled(self, enabled: bool):
         self.enabled = bool(enabled)
         if not self.enabled:
+            self._sensitivity_mode = "off"
             self.stop_monitoring()
+        elif self._sensitivity_mode == "off":
+            self._sensitivity_mode = "speakers"
+
+    def get_mode(self) -> str:
+        return self._sensitivity_mode if self.enabled else "off"
 
     def set_sensitivity(self, mode: str):
         """
         Sets barge-in detection sensitivity profile:
-        - 'headphones': super sensitive (for headsets/earbuds where speaker leakage is 0)
-        - 'balanced': optimized for laptop speakers (default)
-        - 'noisy': for noisy environments / high speaker volume
+        - 'off': voice barge-in off (Spacebar & Orb Tap still work instantly)
+        - 'headphones': sensitive threshold (0.040) for headsets/earbuds where speaker leakage is 0
+        - 'speakers': calibrated high-threshold (0.240) for laptop speakers without false triggers
+        - 'noisy': high-noise threshold (0.320) for noisy rooms
         """
         mode_clean = mode.lower().strip()
-        if mode_clean == "headphones":
-            self.energy_threshold = 0.030
-            self.consecutive_frames_required = 3
+        if mode_clean in ("off", "disable", "disabled", "manual"):
+            self.enabled = False
+            self._sensitivity_mode = "off"
+            self.stop_monitoring()
+        elif mode_clean == "headphones":
+            self.enabled = True
+            self.energy_threshold = 0.040
+            self.consecutive_frames_required = 4
+            self._settling_window_sec = 0.25
             self._sensitivity_mode = "headphones"
         elif mode_clean == "noisy":
-            self.energy_threshold = 0.120
-            self.consecutive_frames_required = 6
+            self.enabled = True
+            self.energy_threshold = 0.320
+            self.consecutive_frames_required = 10
+            self._settling_window_sec = 0.80
             self._sensitivity_mode = "noisy"
         else:
-            self.energy_threshold = 0.075
-            self.consecutive_frames_required = 5
-            self._sensitivity_mode = "balanced"
-        logger.info(f"Barge-in sensitivity set to '{self._sensitivity_mode}' (threshold={self.energy_threshold})")
+            self.enabled = True
+            self.energy_threshold = 0.240
+            self.consecutive_frames_required = 8
+            self._settling_window_sec = 0.60
+            self._sensitivity_mode = "speakers"
+        logger.info(f"Barge-in profile set to '{self._sensitivity_mode}' (enabled={self.enabled}, threshold={self.energy_threshold})")
 
     def is_monitoring(self) -> bool:
         return self._is_monitoring

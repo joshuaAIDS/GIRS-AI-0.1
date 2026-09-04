@@ -91,7 +91,8 @@ def handle_voice_commands(arg: str, assistant: IGIRSAssistant):
         print(f"  • English Voice: {C_PURPLE}{tts.english_voice}{C_RESET}")
         print(f"  • Tamil Voice: {C_PURPLE}{tts.tamil_voice}{C_RESET}")
         print(f"  • Volume: {C_YELLOW}{int(tts.volume * 100)}%{C_RESET}")
-        print(f"  • Speed Rate: {C_CYAN}{tts.rate}{C_RESET}\n")
+        print(f"  • Speed Rate: {C_CYAN}{tts.rate}{C_RESET}")
+        print(f"  • Barge-In Profile: {C_CYAN}{tts.get_barge_in_mode().upper()}{C_RESET}\n")
 
     elif sub in ("on", "enable"):
         tts.set_enabled(True)
@@ -120,6 +121,14 @@ def handle_voice_commands(arg: str, assistant: IGIRSAssistant):
             new_rate = tts.set_rate(val)
             print(f"{C_GREEN}✔ Speech rate set to {new_rate}{C_RESET}")
 
+    elif sub in ("barge", "bargein", "barge_in"):
+        if not val:
+            print(f"{C_YELLOW}Current Barge-In Profile: {tts.get_barge_in_mode().upper()}{C_RESET}")
+            print(f"{C_DIM}Usage: /voice bargein off | headphones | speakers{C_RESET}")
+        else:
+            tts.set_barge_in_mode(val)
+            print(f"{C_GREEN}✔ Barge-In profile set to '{tts.get_barge_in_mode().upper()}'.{C_RESET}")
+
     elif sub in ("voice", "setvoice"):
         if not val:
             print(f"{C_RED}Usage: /voice voice <name or ID>{C_RESET} (Use /voice list to see options)")
@@ -135,7 +144,7 @@ def handle_voice_commands(arg: str, assistant: IGIRSAssistant):
             print(f"  • {C_CYAN}{v['id']}{C_RESET} - {v['name']}{tag}")
         print()
     else:
-        print(f"{C_RED}Unknown voice command '{sub}'. Use /voice on|off|volume|rate|voice|list{C_RESET}")
+        print(f"{C_RED}Unknown voice command '{sub}'. Use /voice on|off|volume|rate|bargein|voice|list{C_RESET}")
 
 def run_single_voice_turn(assistant: IGIRSAssistant):
     """Executes a single push-to-talk voice turn."""
@@ -200,14 +209,14 @@ def run_continuous_voice_mode(assistant: IGIRSAssistant):
             voice_tag = f" {C_PURPLE}🔊 Speaking...{C_RESET}" if assistant.tts.enabled else ""
             print(f"{C_CYAN}{C_BOLD}IGIRS AI:{C_RESET}{voice_tag} {reply}\n")
 
-            # Wait for speech playback while barge-in monitor is armed
-            time.sleep(0.08)
+            # Wait for speech playback cleanly
+            time.sleep(0.15)
             while assistant.tts.is_speaking():
-                time.sleep(0.03)
+                time.sleep(0.04)
 
             # If interrupted by voice barge-in, skip echo pause and listen immediately!
             if not assistant.tts.was_interrupted():
-                time.sleep(0.18)
+                time.sleep(0.35)
 
         except KeyboardInterrupt:
             assistant.tts.stop()

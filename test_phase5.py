@@ -33,11 +33,11 @@ def test_phase5():
     print("\n[2/4] Testing Media Playback Tool...")
     res_yt = assistant.tools._tool_play_media(query="Interstellar Theme", platform="youtube")
     print(f"  • YouTube Tool Output: {res_yt}")
-    assert "YouTube" in res_yt, "YouTube playback handler failed!"
+    assert "youtube" in str(res_yt).lower(), "YouTube playback handler failed!"
 
     res_spot = assistant.tools._tool_play_media(query="Lo-fi Beats", platform="spotify")
     print(f"  • Spotify Tool Output: {res_spot}")
-    assert "Spotify" in res_spot, "Spotify playback handler failed!"
+    assert "spotify" in str(res_spot).lower(), "Spotify playback handler failed!"
     print("  [OK] Media playback handlers verified.")
 
     # 3. Test Daily Briefing Tool

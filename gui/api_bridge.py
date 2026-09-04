@@ -30,10 +30,11 @@ class DesktopApiBridge:
 
     def trigger_barge_in(self) -> bool:
         """Manually triggers barge-in interrupt from GUI (Spacebar, Orb click)."""
-        if self._assistant and hasattr(self._assistant, "tts"):
+        if self._assistant and hasattr(self._assistant, "tts") and self._assistant.tts.is_speaking():
             self._assistant.tts.trigger_barge_in()
-        self._on_barge_in_fired()
-        return True
+            self._on_barge_in_fired()
+            return True
+        return False
 
     def set_window(self, window):
         self._window = window
@@ -168,6 +169,7 @@ class DesktopApiBridge:
             "english_voice": tts.english_voice,
             "tamil_voice": tts.tamil_voice,
             "barge_in": tts.is_barge_in_enabled(),
+            "barge_in_mode": tts.get_barge_in_mode(),
             "audio_cues": audio_cues.is_cues_enabled(),
             "available_voices": tts.list_voices()
         }
@@ -185,7 +187,9 @@ class DesktopApiBridge:
             tts.set_voice(settings["english_voice"])
         if "tamil_voice" in settings:
             tts.set_voice(settings["tamil_voice"])
-        if "barge_in" in settings:
+        if "barge_in_mode" in settings:
+            tts.set_barge_in_mode(settings["barge_in_mode"])
+        elif "barge_in" in settings:
             tts.set_barge_in_enabled(bool(settings["barge_in"]))
         if "audio_cues" in settings:
             import utils.audio_cues as audio_cues

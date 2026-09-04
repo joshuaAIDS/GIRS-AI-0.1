@@ -447,25 +447,44 @@
           <!-- Tab: Settings -->
           <div id="tabContent-settings" class="tab-view hidden flex-1 flex flex-col gap-3 overflow-y-auto text-xs">
             <div class="flex flex-col gap-1.5">
-              <label class="font-semibold text-slate-300">Tamil Voice (edge-tts)</label>
-              <select class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800">
-                <option>ta-IN-PallaviNeural (Female)</option>
-                <option>ta-IN-ValluvarNeural (Male)</option>
+              <label class="font-semibold text-slate-300">⚡ Voice Barge-In Profile</label>
+              <select id="settingBargeInMode" onchange="updateVoiceSetting('barge_in_mode', this.value)" class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800 focus:border-cyan-500 outline-none">
+                <option value="off">Off / Spacebar & Orb Tap (Recommended for Speakers)</option>
+                <option value="headphones">Voice Barge-In (Headphones Mode)</option>
+                <option value="speakers">Voice Barge-In (Laptop Speakers Mode)</option>
               </select>
-            </div>
-            <div class="flex flex-col gap-1.5">
-              <label class="font-semibold text-slate-300">English Voice (NVIDIA Magpie)</label>
-              <select class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800">
-                <option>Magpie-Multilingual.EN-US.Aria</option>
-                <option>en-IN-NeerjaNeural</option>
-              </select>
+              <span class="text-[10px] text-slate-500">Spacebar, Escape, and clicking 3D Orb always interrupt instantly (&lt;10ms).</span>
             </div>
             <div class="flex flex-col gap-1.5">
               <div class="flex items-center justify-between text-slate-300">
-                <span>Speech Speed Rate:</span>
-                <span id="rateLabel" class="font-mono text-blue-400">1.0x</span>
+                <span>🔊 Voice Volume:</span>
+                <span id="volumeLabel" class="font-mono text-cyan-400">100%</span>
               </div>
-              <input type="range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('rateLabel').innerText=this.value+'x'" class="accent-blue-500">
+              <input id="settingVolume" type="range" min="0" max="100" step="5" value="100" oninput="document.getElementById('volumeLabel').innerText=this.value+'%'" onchange="updateVoiceSetting('volume', this.value)" class="accent-cyan-500 cursor-pointer">
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between text-slate-300">
+                <span>⚡ Speech Speed Rate:</span>
+                <span id="rateLabel" class="font-mono text-blue-400">+0%</span>
+              </div>
+              <input id="settingRate" type="range" min="-20" max="40" step="5" value="0" oninput="document.getElementById('rateLabel').innerText=(this.value>=0?'+':'')+this.value+'%'" onchange="updateVoiceSetting('rate', (this.value>=0?'+':'')+this.value+'%')" class="accent-blue-500 cursor-pointer">
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="font-semibold text-slate-300">English Neural Voice</label>
+              <select id="settingEnglishVoice" onchange="updateVoiceSetting('english_voice', this.value)" class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800 focus:border-cyan-500 outline-none">
+                <option value="en-US-ChristopherNeural">Christopher (US English - Confident Male)</option>
+                <option value="en-IN-NeerjaNeural">Neerja (Indian English - Female)</option>
+                <option value="en-IN-PrabhatNeural">Prabhat (Indian English - Male)</option>
+                <option value="en-US-AvaNeural">Ava (US English - Natural Female)</option>
+                <option value="en-GB-SoniaNeural">Sonia (British English - Female)</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="font-semibold text-slate-300">Tamil Voice (தமிழ்)</label>
+              <select id="settingTamilVoice" onchange="updateVoiceSetting('tamil_voice', this.value)" class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800 focus:border-cyan-500 outline-none">
+                <option value="ta-IN-PallaviNeural">Pallavi (Tamil - Female)</option>
+                <option value="ta-IN-ValluvarNeural">Valluvar (Tamil - Male)</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1455,6 +1474,7 @@
     }
 
     let bargeInTriggered = false;
+    let manualBargeInTriggered = false;
 
     window.onBargeInTriggered = function() {
       console.log("⚡ Voice Barge-In Event received from python backend!");
@@ -1462,11 +1482,50 @@
       setVoiceState('listening');
     };
 
+    async function loadVoiceSettings() {
+      if (hasBridge()) {
+        try {
+          const s = await window.pywebview.api.get_voice_settings();
+          if (s) {
+            const modeEl = document.getElementById('settingBargeInMode');
+            if (modeEl && s.barge_in_mode) modeEl.value = s.barge_in_mode;
+            const volEl = document.getElementById('settingVolume');
+            if (volEl && s.volume !== undefined) {
+              const v = Math.round(s.volume * 100);
+              volEl.value = v;
+              const lbl = document.getElementById('volumeLabel');
+              if (lbl) lbl.innerText = v + '%';
+            }
+            const engEl = document.getElementById('settingEnglishVoice');
+            if (engEl && s.english_voice) engEl.value = s.english_voice;
+            const taEl = document.getElementById('settingTamilVoice');
+            if (taEl && s.tamil_voice) taEl.value = s.tamil_voice;
+          }
+        } catch (e) {
+          console.error("Error loading voice settings:", e);
+        }
+      }
+    }
+
+    async function updateVoiceSetting(key, val) {
+      if (hasBridge()) {
+        try {
+          const payload = {};
+          payload[key] = val;
+          await window.pywebview.api.update_voice_settings(payload);
+          console.log(`Updated voice setting: ${key} = ${val}`);
+        } catch (e) {
+          console.error("Error updating voice setting:", e);
+        }
+      }
+    }
+
     async function runAlwaysListeningLoop() {
       while (isAlwaysListening) {
         try {
           setVoiceState('listening');
           if (hasBridge()) {
+            bargeInTriggered = false;
             const result = await window.pywebview.api.trigger_voice();
             if (!isAlwaysListening) break;
 
@@ -1485,17 +1544,19 @@
                 break;
               }
 
-              // Maintain animated speaking state while TTS plays (barge-in interrupts instantly)
-              await new Promise(r => setTimeout(r, 150));
+              // Maintain animated speaking state while TTS plays cleanly
+              bargeInTriggered = false;
+              await new Promise(r => setTimeout(r, 220));
               while (isAlwaysListening && await window.pywebview.api.is_speaking()) {
-                await new Promise(r => setTimeout(r, 40));
+                await new Promise(r => setTimeout(r, 50));
               }
 
               // If interrupted by voice barge-in, skip echo recovery and listen immediately!
               if (bargeInTriggered) {
                 bargeInTriggered = false;
               } else {
-                await new Promise(r => setTimeout(r, 180));
+                // Echo recovery delay: prevents speaker reverberation from re-triggering mic
+                await new Promise(r => setTimeout(r, 350));
               }
             } else {
               // Silence or timeout: brief wait and continue listening
@@ -1524,6 +1585,7 @@
       setVoiceState('listening');
       if (hasBridge()) {
         try {
+          bargeInTriggered = false;
           const result = await window.pywebview.api.trigger_voice();
           if (result && result.status === 'success' && result.user_input) {
             appendUserBubble(result.user_input, result.user_name || 'Joshua');
@@ -1538,17 +1600,18 @@
               updateAlwaysListeningUI();
             }
 
-            // Keep animated speaking state while voice audio is playing
-            await new Promise(r => setTimeout(r, 150));
+            // Keep animated speaking state while voice audio is playing cleanly
+            bargeInTriggered = false;
+            await new Promise(r => setTimeout(r, 220));
             while (await window.pywebview.api.is_speaking()) {
-              await new Promise(r => setTimeout(r, 40));
+              await new Promise(r => setTimeout(r, 50));
             }
 
             // If user barged in during speech, immediately listen to their follow-up!
             if (bargeInTriggered) {
               bargeInTriggered = false;
               console.log("Barge-in interrupted single turn - transitioning immediately to listening!");
-              setTimeout(() => triggerVoiceCycle(), 50);
+              setTimeout(() => triggerVoiceCycle(), 80);
               return;
             }
 
@@ -1583,6 +1646,7 @@
 
       if (tabId === 'diagnostics') refreshTelemetry();
       if (tabId === 'memory') loadFacts();
+      if (tabId === 'settings') loadVoiceSettings();
     }
 
     async function triggerMediaControl(action) {
@@ -1646,6 +1710,8 @@
 
       appendUserBubble(text, 'Joshua');
       setVoiceState('thinking');
+      bargeInTriggered = false;
+      manualBargeInTriggered = false;
 
       if (hasBridge()) {
         try {
@@ -1662,20 +1728,23 @@
               updateAlwaysListeningUI();
             }
 
-            // Keep animated speaking state while voice audio is playing
-            await new Promise(r => setTimeout(r, 150));
+            // Keep animated speaking state while voice audio is playing cleanly
+            bargeInTriggered = false;
+            await new Promise(r => setTimeout(r, 220));
             while (await window.pywebview.api.is_speaking()) {
-              await new Promise(r => setTimeout(r, 40));
+              await new Promise(r => setTimeout(r, 50));
             }
 
-            // If user barged in during speech, immediately listen to their follow-up!
-            if (bargeInTriggered) {
+            // If user explicitly hit Spacebar/Escape or clicked Orb to barge-in
+            if (manualBargeInTriggered) {
+              manualBargeInTriggered = false;
               bargeInTriggered = false;
-              console.log("Barge-in interrupted text response - transitioning to listening!");
-              setTimeout(() => triggerVoiceCycle(), 50);
+              console.log("Manual barge-in during text response - transitioning to listening!");
+              setTimeout(() => triggerVoiceCycle(), 80);
               return;
             }
 
+            bargeInTriggered = false;
             setVoiceState('standby');
           } else {
             appendAiBubble("No response generated.");
@@ -1703,6 +1772,7 @@
         if (activeTag !== 'input' && activeTag !== 'textarea') {
           e.preventDefault();
           console.log("⚡ Space/Escape Barge-In triggered!");
+          manualBargeInTriggered = true;
           if (hasBridge()) {
             await window.pywebview.api.trigger_barge_in();
           }
@@ -1714,9 +1784,12 @@
     const orbCanvasEl = document.getElementById('webglCanvas');
     if (orbCanvasEl) {
       orbCanvasEl.addEventListener('click', async () => {
-        if (currentVoiceState === 'speaking' && hasBridge()) {
+        if (currentVoiceState === 'speaking') {
           console.log("⚡ 3D Orb Click Barge-In triggered!");
-          await window.pywebview.api.trigger_barge_in();
+          manualBargeInTriggered = true;
+          if (hasBridge()) {
+            await window.pywebview.api.trigger_barge_in();
+          }
         }
       });
     }

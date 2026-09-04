@@ -122,6 +122,16 @@ class TTSEngine:
     def is_barge_in_enabled(self) -> bool:
         return bool(self.player.barge_in and self.player.barge_in.enabled)
 
+    def set_barge_in_mode(self, mode: str):
+        """Sets barge-in mode: 'off', 'headphones', 'speakers'."""
+        if self.player.barge_in:
+            self.player.barge_in.set_sensitivity(mode)
+
+    def get_barge_in_mode(self) -> str:
+        if self.player.barge_in:
+            return self.player.barge_in.get_mode()
+        return "off"
+
     def set_on_barge_in(self, callback: Callable[[], None]):
         """Sets external handler fired when barge-in interrupts speech."""
         self.player.on_barge_in = callback
