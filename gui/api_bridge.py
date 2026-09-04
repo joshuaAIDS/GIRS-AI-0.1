@@ -221,6 +221,40 @@ class DesktopApiBridge:
         """Returns True if voice audio is actively playing."""
         return self._assistant.tts.is_speaking()
 
+    def speak_text(self, text: str) -> bool:
+        """
+        Speaks the provided text aloud using the active TTS voice and manages GUI states.
+        """
+        if not text or not text.strip():
+            return False
+        try:
+            # Stop any currently playing audio first
+            if self._assistant.tts.is_speaking():
+                self._assistant.tts.stop()
+
+            # Clean markdown formatting for clean spoken narration
+            clean_text = text.replace("*", "").replace("#", "").replace("`", "").strip()
+            paragraphs = [p.strip() for p in clean_text.split("\n\n") if p.strip()]
+            spoken = " ".join(paragraphs[:2]) if paragraphs else clean_text
+            if len(spoken) > 350:
+                spoken = spoken[:350] + "..."
+
+            self.notify_state("speaking")
+            self._assistant.tts.speak(
+                spoken,
+                blocking=False,
+                on_complete=lambda: self.notify_state("standby")
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Bridge speak_text error: {e}")
+            self.notify_state("standby")
+            return False
+
+    def respeak(self, text: str) -> bool:
+        """Alias for speak_text called by UI Re-speak buttons."""
+        return self.speak_text(text)
+
     # --- Media Controls Bridge ---
 
     def play_media(self, query: str, platform: str = "auto") -> Dict[str, Any]:

@@ -252,7 +252,7 @@
                   "வணக்கம்! அனைத்து சிஸ்டங்களும் சீராக இயங்குகின்றன."
                 </p>
                 <div class="flex items-center gap-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
-                  <button onclick="setVoiceState('speaking')" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
+                  <button onclick="respeakMessage(this)" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
                     <span>🔊</span> Re-speak
                   </button>
                   <span class="ml-auto font-mono text-slate-500">Nemotron-3-Ultra</span>
@@ -2022,6 +2022,9 @@
           ${imgHtml}
           <div class="leading-relaxed whitespace-pre-wrap text-slate-200 mt-1">${escapeHtml(data.analysis)}</div>
           <div class="flex items-center flex-wrap gap-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
             <button onclick="copyVisionAnalysis(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
               <span>📋</span> Copy
             </button>
@@ -2324,6 +2327,9 @@
           <div class="leading-relaxed whitespace-pre-wrap text-slate-200">${escapeHtml(data.answer)}</div>
           ${citationsHtml}
           <div class="flex items-center flex-wrap gap-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
             <button onclick="copyVisionAnalysis(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
               <span>📋</span> Copy
             </button>
@@ -2465,12 +2471,51 @@
     }
 
     function respeakMessage(btn) {
-      const text = btn.closest('.glass-panel, div').querySelector('p').innerText;
-      if (hasBridge()) {
-        window.pywebview.api.send_message(text);
+      if (!btn) return;
+      // Search ancestors for message card container
+      const card = btn.closest('.rounded-2xl') || (btn.parentElement ? btn.parentElement.parentElement : null);
+      if (!card) return;
+
+      // Look for text element
+      const p = card.querySelector('p, .leading-relaxed');
+      let text = '';
+      if (p) {
+        text = p.innerText || p.textContent || '';
+      }
+      if (!text || !text.trim()) {
+        const clone = card.cloneNode(true);
+        const toRemove = clone.querySelectorAll('button, .font-mono, .border-t, .text-\\[10px\\], .text-xs.font-mono');
+        toRemove.forEach(el => el.remove());
+        text = clone.innerText || clone.textContent || '';
+      }
+      text = text.trim();
+      if (!text) return;
+
+      // Visual feedback: animate speaker icon
+      const icon = btn.querySelector('span');
+      if (icon) {
+        icon.classList.add('animate-bounce');
+        setTimeout(() => icon.classList.remove('animate-bounce'), 1200);
+      }
+      btn.classList.add('text-blue-400');
+      setTimeout(() => btn.classList.remove('text-blue-400'), 2000);
+
+      if (hasBridge() && window.pywebview.api.respeak) {
+        window.pywebview.api.respeak(text);
+      } else if (hasBridge() && window.pywebview.api.speak_text) {
+        window.pywebview.api.speak_text(text);
       } else {
-        setVoiceState('speaking');
-        setTimeout(() => setVoiceState('standby'), 2500);
+        // Browser fallback
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.onstart = () => setVoiceState('speaking');
+          utter.onend = () => setVoiceState('standby');
+          window.speechSynthesis.speak(utter);
+        } else {
+          setVoiceState('speaking');
+          setTimeout(() => setVoiceState('standby'), 2500);
+        }
       }
     }
 
