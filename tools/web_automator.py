@@ -12,7 +12,14 @@ import urllib.parse
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import requests
-from bs4 import BeautifulSoup
+
+# Check BeautifulSoup4 availability
+try:
+    from bs4 import BeautifulSoup
+    BS4_AVAILABLE = True
+except ImportError:
+    BeautifulSoup = None
+    BS4_AVAILABLE = False
 
 import config
 
@@ -85,7 +92,7 @@ class WebAutomator:
             except Exception as e:
                 logger.warning(f"Amazon HTTP fetch error: {e}")
 
-        if not html_content:
+        if not html_content or not BS4_AVAILABLE:
             return results
 
         soup = BeautifulSoup(html_content, "html.parser")
@@ -160,7 +167,7 @@ class WebAutomator:
             except Exception as e:
                 logger.warning(f"Flipkart HTTP fetch error: {e}")
 
-        if not html_content:
+        if not html_content or not BS4_AVAILABLE:
             return results
 
         soup = BeautifulSoup(html_content, "html.parser")
@@ -350,6 +357,23 @@ class WebAutomator:
                     }
             except Exception as e:
                 return {"status": "error", "message": f"Could not connect to URL: {e}", "url": url}
+
+        if not BS4_AVAILABLE:
+            clean_text = re.sub(r"<(script|style|nav|footer|header|noscript)[^>]*>.*?</\1>", "", html_content, flags=re.DOTALL | re.IGNORECASE)
+            clean_text = re.sub(r"<[^>]+>", " ", clean_text)
+            clean_text = re.sub(r"\s+", " ", clean_text).strip()
+            title_m = re.search(r"<title[^>]*>(.*?)</title>", html_content, re.IGNORECASE)
+            page_title = title_m.group(1).strip() if title_m else url
+            return {
+                "status": "success",
+                "url": url,
+                "title": page_title,
+                "word_count": len(clean_text.split()),
+                "content": clean_text[:max_chars],
+                "tables": [],
+                "links": [],
+                "summary": f"Extracted content from '{page_title}'."
+            }
 
         soup = BeautifulSoup(html_content, "html.parser")
         if not page_title and soup.title:
