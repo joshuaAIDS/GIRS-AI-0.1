@@ -52,36 +52,57 @@
 ### 8. 🧠 Persistent Fact Vault Memory
 - Remembers user identity, preferences, and facts persistently across restarts in `facts_store.json`.
 
+### 9. 📚 Knowledge Vault & Document RAG (Phase 5)
+- Ingest and chat with local PDFs, Word `.docx`, Markdown, text notes, and code files.
+- Local high-speed semantic retrieval and citation tracking without uploading files to external clouds.
+
+### 10. 📱 Hands-Free WhatsApp & Email Assistant (Phase 6)
+- **WhatsApp Desktop Automation**: Direct hands-free dispatch to contacts and phone numbers with dual-dispatch click & keystroke simulation.
+- **Email Intelligence**: Native SMTP/IMAP client with AI email drafting and unread inbox checking.
+- **Contacts Manager**: Manage phone numbers, emails, and nicknames directly via voice or GUI.
+
+### 11. 🌐 Web Automation & Live Price Radar (Phase 8)
+- **Live E-Commerce Price Radar**: Compares prices live across **Amazon.in** and **Flipkart**, detects best deals, computes savings differences, and provides audio briefings.
+- **Smart Web Scraper**: Strips ads and boilerplate to extract clean markdown, data tables, and hyperlinks.
+- **Visual Web Capture**: Headless browser webpage screenshot capturing with viewport and full-page support.
+
 ---
 
 ## 📂 Project Architecture
 
 ```
 IGIRS AI/
-├── run_app.py              # Main desktop GUI launcher (pywebview)
-├── assistant.py            # Central Assistant orchestrator & intent router
-├── config.py               # Global settings, voices, models, and token budgets
+├── run_desktop.py          # Main desktop launcher (3D Cyber Command Center)
+├── assistant.py            # Central Assistant orchestrator & single-turn routing
+├── config.py               # Global settings, voices, models, and directory configs
 ├── gui/
 │   ├── api_bridge.py       # Python-JavaScript Bridge API
 │   └── web/
-│       └── index.html      # Glassmorphic HUD + WebGL 3D Orb Shader Engine
+│       └── index.html      # Glassmorphic HUD + WebGL 3D Orb + Comm, Docs & Web Tabs
 ├── llm/
 │   ├── nvidia_client.py    # NVIDIA NIM client with auto key-rotation & fallback
 │   └── prompts.py          # System prompt & human companion persona
 ├── tts/
 │   ├── synthesizer.py      # Edge-TTS synthesizer with pyttsx3 fallback
 │   ├── player.py           # Pygame non-blocking audio player
-│   └── engine.py           # Threaded speech worker queue
+│   └── engine.py           # Threaded speech worker queue with voice barge-in
 ├── stt/
 │   ├── listener.py         # SpeechRecognition audio capture & transcribe
 │   └── wake_word.py        # Wake word detector
 ├── memory/
 │   └── manager.py          # Persistent facts & conversation history manager
 ├── tools/
-│   └── registry.py         # Telemetry, vision, media, notes, and briefing tools
+│   ├── registry.py         # Universal Tool Registry with dynamic tool lazy-loading
+│   ├── web_automator.py    # Playwright & HTTP scraper, price radar, screenshot engine
+│   ├── whatsapp_engine.py  # WhatsApp desktop dispatcher
+│   ├── email_engine.py     # SMTP/IMAP and native mail automation
+│   ├── document_rag.py     # Document indexing, semantic search, and summary engine
+│   ├── window_utils.py     # Win32 desktop window targeting and click automation
+│   └── contacts_manager.py # Address book manager
 └── utils/
     ├── media.py            # Direct YouTube video resolver
-    └── system.py           # Telemetry metrics collection
+    ├── system.py           # Telemetry metrics collection
+    └── vision.py           # Multi-modal desktop screen capture
 ```
 
 ---
