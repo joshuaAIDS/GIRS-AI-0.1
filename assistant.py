@@ -147,7 +147,7 @@ class IGIRSAssistant:
             selected_tool_names.add("lock_workstation")
 
         # 14. Minimize Windows / Show Desktop
-        if re.search(r"\b(minimize (all|windows)|show desktop|go to desktop|clear screen)\b", text):
+        if re.search(r"\b(minimize\b|show desktop|go to desktop|toggle desktop|clear screen)\b", text):
             selected_tool_names.add("minimize_all_windows")
 
         # --- Phase 1: Productivity ---

@@ -144,6 +144,7 @@ def take_screenshot(filename: Optional[str] = None) -> Dict[str, Any]:
         if not shot:
             try:
                 import pyautogui
+                pyautogui.FAILSAFE = False
                 shot = pyautogui.screenshot()
             except Exception:
                 pass
@@ -176,10 +177,38 @@ def lock_workstation() -> Dict[str, Any]:
         return {"success": False, "error": str(e), "message": f"Error locking workstation: {e}"}
 
 def minimize_all_windows() -> Dict[str, Any]:
-    """Minimizes all windows to show the desktop (Windows+D)."""
+    """Minimizes all windows to show the desktop via Windows Shell COM and keybd_event."""
+    # Method 1: Windows Shell.Application COM object (cleanest, immune to mouse position)
     try:
-        import pyautogui
-        pyautogui.hotkey("win", "d")
+        import comtypes.client
+        shell = comtypes.client.CreateObject("Shell.Application")
+        shell.MinimizeAll()
+        return {"success": True, "message": "All windows minimized to desktop."}
+    except Exception as e:
+        logger.debug(f"Shell.Application MinimizeAll error: {e}")
+
+    # Method 2: Native Windows user32 keybd_event (Win + D)
+    try:
+        VK_LWIN = 0x5B
+        VK_D = 0x44
+        KEYEVENTF_KEYUP = 0x0002
+        user32 = ctypes.windll.user32
+        user32.keybd_event(VK_LWIN, 0, 0, 0)
+        user32.keybd_event(VK_D, 0, 0, 0)
+        user32.keybd_event(VK_D, 0, KEYEVENTF_KEYUP, 0)
+        user32.keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, 0)
+        return {"success": True, "message": "All windows minimized to desktop."}
+    except Exception as e:
+        logger.debug(f"keybd_event error: {e}")
+
+    # Method 3: PowerShell COM fallback
+    try:
+        import subprocess
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", "(New-Object -ComObject Shell.Application).MinimizeAll()"],
+            capture_output=True,
+            timeout=3
+        )
         return {"success": True, "message": "All windows minimized to desktop."}
     except Exception as e:
         logger.error(f"Failed to minimize windows: {e}")
