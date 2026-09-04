@@ -21,6 +21,9 @@ class ToolRegistry:
         self.llm_client = llm_client
         self.tts_engine = tts_engine
         self.doc_engine = None
+        self.contacts_mgr = None
+        self.wa_engine = None
+        self.mail_engine = None
         self.tools: Dict[str, Dict[str, Any]] = {}
         self.handlers: Dict[str, Callable] = {}
         self._register_default_tools()
@@ -32,6 +35,30 @@ class ToolRegistry:
             from tools.document_engine import DocumentEngine
             self.doc_engine = DocumentEngine()
         return self.doc_engine
+
+    @property
+    def contacts(self):
+        """Lazy-loaded ContactsManager instance."""
+        if self.contacts_mgr is None:
+            from tools.contacts_manager import ContactsManager
+            self.contacts_mgr = ContactsManager()
+        return self.contacts_mgr
+
+    @property
+    def whatsapp(self):
+        """Lazy-loaded WhatsAppEngine instance."""
+        if self.wa_engine is None:
+            from tools.whatsapp_engine import WhatsAppEngine
+            self.wa_engine = WhatsAppEngine(self.contacts)
+        return self.wa_engine
+
+    @property
+    def email(self):
+        """Lazy-loaded EmailEngine instance."""
+        if self.mail_engine is None:
+            from tools.email_engine import EmailEngine
+            self.mail_engine = EmailEngine(self.contacts)
+        return self.mail_engine
 
     def register(self, name: str, description: str, parameters: Dict[str, Any], handler: Callable):
         """Registers a function tool and its execution handler."""
@@ -528,6 +555,139 @@ class ToolRegistry:
             handler=self._tool_index_local_file
         )
 
+        # 29. WhatsApp: Send Message
+        self.register(
+            name="send_whatsapp",
+            description="Send a WhatsApp message to a contact name, nickname (e.g. Mom, Dad, Boss, Karthik), or direct phone number. Supports hands-free auto-send.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "recipient": {
+                        "type": "string",
+                        "description": "Recipient name, nickname from contacts book, or phone number with country code."
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "The exact message content to send."
+                    },
+                    "auto_send": {
+                        "type": "boolean",
+                        "description": "If true, automatically triggers Enter key to send the message hands-free (defaults to true)."
+                    }
+                },
+                "required": ["recipient", "message"]
+            },
+            handler=self._tool_send_whatsapp
+        )
+
+        # 30. Email: Send Email
+        self.register(
+            name="send_email",
+            description="Send an email directly via SMTP or open in default mail client (Windows Mail / Outlook). Resolves contact names automatically.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "to": {
+                        "type": "string",
+                        "description": "Recipient contact name, nickname, or email address."
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "Subject line of the email."
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Body message text of the email."
+                    },
+                    "attachment_path": {
+                        "type": "string",
+                        "description": "Optional local file path to attach to the email."
+                    }
+                },
+                "required": ["to", "subject", "body"]
+            },
+            handler=self._tool_send_email
+        )
+
+        # 31. Email: AI Smart Drafting
+        self.register(
+            name="draft_email",
+            description="Draft a professional, well-structured email using AI from brief instructions.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "instruction": {
+                        "type": "string",
+                        "description": "Brief instruction or key points to cover in the email draft."
+                    },
+                    "recipient": {
+                        "type": "string",
+                        "description": "Optional recipient name or relationship."
+                    },
+                    "tone": {
+                        "type": "string",
+                        "description": "Tone of the email, e.g., 'professional', 'casual', 'urgent', 'polite'."
+                    }
+                },
+                "required": ["instruction"]
+            },
+            handler=self._tool_draft_email
+        )
+
+        # 32. Email: Check Unread Emails
+        self.register(
+            name="check_unread_emails",
+            description="Check recent unread emails in the user's inbox via IMAP SSL and provide a voice summary.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of unread emails to retrieve (default: 5)."
+                    }
+                }
+            },
+            handler=self._tool_check_unread_emails
+        )
+
+        # 33. Contacts: Manage Address Book
+        self.register(
+            name="manage_contacts",
+            description="Manage the personal contacts book: add new contact, list contacts, search by name/nickname, or delete.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["add", "list", "get", "delete"],
+                        "description": "Action to perform on contacts: 'add', 'list', 'get', 'delete'."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Contact's full name (required for 'add' or 'get')."
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "Contact's phone number with country code (e.g. +919876543210)."
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Contact's email address."
+                    },
+                    "nickname": {
+                        "type": "string",
+                        "description": "Nickname or relationship (e.g. 'Mom', 'Boss', 'Dad')."
+                    },
+                    "contact_id": {
+                        "type": "string",
+                        "description": "Unique contact ID (required for 'delete')."
+                    }
+                },
+                "required": ["action"]
+            },
+            handler=self._tool_manage_contacts
+        )
+
     # ------------------ TOOL IMPLEMENTATIONS ------------------
 
     def _tool_system_telemetry(self, **kwargs) -> Dict[str, Any]:
@@ -913,4 +1073,72 @@ class ToolRegistry:
         if not p.exists() or not p.is_file():
             return {"status": "error", "message": f"File does not exist: {file_path}"}
         return self.documents.ingest_file(source=p, filename=p.name)
+
+    # --- Phase 6: Hands-Free WhatsApp & Email Handlers ---
+
+    def _tool_send_whatsapp(self, recipient: str, message: str, auto_send: bool = True, **kwargs) -> Dict[str, Any]:
+        """Dispatches a WhatsApp message."""
+        return self.whatsapp.send_message(recipient=recipient, message=message, auto_send=auto_send)
+
+    def _tool_send_email(self, to: str, subject: str, body: str, attachment_path: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        """Sends an email or opens in mail client."""
+        return self.email.send_email(to=to, subject=subject, body=body, attachment_path=attachment_path)
+
+    def _tool_draft_email(self, instruction: str, recipient: Optional[str] = None, tone: str = "professional", **kwargs) -> Dict[str, Any]:
+        """Drafts an email using AI."""
+        return self.email.draft_email(instruction=instruction, recipient=recipient, tone=tone, llm_client=self.llm_client)
+
+    def _tool_check_unread_emails(self, limit: int = 5, **kwargs) -> Dict[str, Any]:
+        """Checks unread emails via IMAP."""
+        return self.email.check_unread_emails(limit=limit)
+
+    def _tool_manage_contacts(
+        self,
+        action: str,
+        name: Optional[str] = None,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
+        nickname: Optional[str] = None,
+        contact_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Manages contacts address book."""
+        act = action.lower().strip()
+        if act == "add":
+            if not name:
+                return {"status": "error", "message": "Contact name is required to add a contact."}
+            contact = self.contacts.add_contact(
+                name=name,
+                phone=phone or "",
+                email=email or "",
+                nickname=nickname or ""
+            )
+            return {
+                "status": "success",
+                "action": "add",
+                "contact": contact,
+                "message": f"Added '{contact['name']}' to your contacts book."
+            }
+        elif act == "list":
+            contacts = self.contacts.list_contacts()
+            return {
+                "status": "success",
+                "action": "list",
+                "count": len(contacts),
+                "contacts": contacts
+            }
+        elif act == "get":
+            query = name or nickname or phone or email or ""
+            contact = self.contacts.get_contact(query)
+            if contact:
+                return {"status": "success", "action": "get", "contact": contact}
+            return {"status": "not_found", "message": f"No contact found matching '{query}'."}
+        elif act == "delete":
+            cid = contact_id or (name and self.contacts.get_contact(name) and self.contacts.get_contact(name).get("id"))
+            if not cid:
+                return {"status": "error", "message": "Specify contact_id or name to delete."}
+            ok = self.contacts.delete_contact(cid)
+            return {"status": "success" if ok else "not_found", "action": "delete", "contact_id": cid}
+        else:
+            return {"status": "error", "message": f"Unknown contact action: '{action}'."}
 

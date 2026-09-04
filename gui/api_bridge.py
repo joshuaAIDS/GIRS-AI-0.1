@@ -502,3 +502,168 @@ class DesktopApiBridge:
             self.notify_state("standby")
             logger.error(f"Bridge summarize_document error: {e}")
             return {"status": "error", "summary": f"Failed to summarize document: {e}"}
+
+    # --- Phase 6: Hands-Free WhatsApp & Email Bridge ---
+
+    def send_whatsapp(self, recipient: str, message: str, auto_send: bool = True) -> Dict[str, Any]:
+        """Dispatches a WhatsApp message."""
+        try:
+            res = self._assistant.tools.whatsapp.send_message(
+                recipient=recipient,
+                message=message,
+                auto_send=auto_send
+            )
+            if res.get("status") == "success" and self._assistant.tts.enabled:
+                self._assistant.tts.speak(f"Dispatched WhatsApp to {res.get('recipient_name', recipient)}.")
+                self.notify_state("speaking")
+            return res
+        except Exception as e:
+            logger.error(f"Bridge send_whatsapp error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def send_email(self, to: str, subject: str, body: str, attachment_path: Optional[str] = None) -> Dict[str, Any]:
+        """Sends an email via SMTP or opens default email client."""
+        try:
+            res = self._assistant.tools.email.send_email(
+                to=to,
+                subject=subject,
+                body=body,
+                attachment_path=attachment_path
+            )
+            if res.get("status") == "success" and self._assistant.tts.enabled:
+                to_name = res.get("recipient_name", to)
+                mode = res.get("mode", "")
+                if mode == "smtp_direct":
+                    self._assistant.tts.speak(f"Email sent successfully to {to_name}.")
+                else:
+                    self._assistant.tts.speak(f"Opened email draft to {to_name} in your mail client.")
+                self.notify_state("speaking")
+            return res
+        except Exception as e:
+            logger.error(f"Bridge send_email error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def draft_email(self, instruction: str, recipient: Optional[str] = None, tone: str = "professional") -> Dict[str, Any]:
+        """Drafts an email using AI."""
+        self.notify_state("thinking")
+        try:
+            res = self._assistant.tools.email.draft_email(
+                instruction=instruction,
+                recipient=recipient,
+                tone=tone,
+                llm_client=self._assistant.llm
+            )
+            self.notify_state("standby")
+            return res
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge draft_email error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def check_unread_emails(self, limit: int = 5, speak_response: bool = True) -> Dict[str, Any]:
+        """Checks unread emails via IMAP."""
+        self.notify_state("thinking")
+        try:
+            res = self._assistant.tools.email.check_unread_emails(limit=limit)
+            summary = res.get("summary", "")
+            if speak_response and self._assistant.tts.enabled and summary:
+                self._assistant.tts.speak(summary)
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+            return res
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge check_unread_emails error: {e}")
+            return {"status": "error", "message": str(e), "summary": f"Could not check email: {e}"}
+
+    def get_contacts(self, query: str = "") -> List[Dict[str, Any]]:
+        """Returns list of contacts."""
+        try:
+            return self._assistant.tools.contacts.list_contacts(query=query)
+        except Exception as e:
+            logger.error(f"Bridge get_contacts error: {e}")
+            return []
+
+    def save_contact(
+        self,
+        name: str,
+        phone: str = "",
+        email: str = "",
+        nickname: str = "",
+        notes: str = "",
+        contact_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Adds or updates a contact."""
+        try:
+            if contact_id:
+                c = self._assistant.tools.contacts.update_contact(
+                    contact_id=contact_id,
+                    name=name,
+                    phone=phone,
+                    email=email,
+                    nickname=nickname,
+                    notes=notes
+                )
+                if c:
+                    return {"status": "success", "action": "updated", "contact": c}
+                return {"status": "not_found", "message": "Contact ID not found."}
+            else:
+                c = self._assistant.tools.contacts.add_contact(
+                    name=name,
+                    phone=phone,
+                    email=email,
+                    nickname=nickname,
+                    notes=notes
+                )
+                return {"status": "success", "action": "added", "contact": c}
+        except Exception as e:
+            logger.error(f"Bridge save_contact error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def delete_contact(self, contact_id: str) -> Dict[str, Any]:
+        """Deletes a contact."""
+        try:
+            ok = self._assistant.tools.contacts.delete_contact(contact_id)
+            return {"status": "success" if ok else "not_found", "contact_id": contact_id}
+        except Exception as e:
+            logger.error(f"Bridge delete_contact error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_email_config(self) -> Dict[str, Any]:
+        """Returns email configuration with password masked."""
+        cfg = dict(self._assistant.tools.email.config)
+        if cfg.get("email_password"):
+            cfg["email_password"] = "••••••••"
+            cfg["has_password"] = True
+        else:
+            cfg["has_password"] = False
+        return cfg
+
+    def save_email_config(
+        self,
+        email_address: str,
+        email_password: str,
+        smtp_server: str = "smtp.gmail.com",
+        smtp_port: int = 587,
+        imap_server: str = "imap.gmail.com",
+        imap_port: int = 993,
+        display_name: str = "Joshua"
+    ) -> Dict[str, Any]:
+        """Saves updated email credentials."""
+        try:
+            # If user didn't change masked password, keep existing
+            if email_password == "••••••••":
+                email_password = self._assistant.tools.email.config.get("email_password", "")
+            return self._assistant.tools.email.save_config(
+                email_address=email_address,
+                email_password=email_password,
+                smtp_server=smtp_server,
+                smtp_port=smtp_port,
+                imap_server=imap_server,
+                imap_port=imap_port,
+                display_name=display_name
+            )
+        except Exception as e:
+            logger.error(f"Bridge save_email_config error: {e}")
+            return {"status": "error", "message": str(e)}

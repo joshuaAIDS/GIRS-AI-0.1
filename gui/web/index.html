@@ -316,6 +316,9 @@
         <div class="hud-interactive glass-panel p-5 flex flex-col h-[440px] shadow-2xl">
           <!-- Tabs -->
           <div class="flex items-center border-b border-slate-800 pb-2 mb-3 gap-1 overflow-x-auto">
+            <button onclick="switchTab('comm')" id="tabBtn-comm" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>💬</span> Comm
+            </button>
             <button onclick="switchTab('docs')" id="tabBtn-docs" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
               <span>📚</span> Docs
             </button>
@@ -331,6 +334,111 @@
             <button onclick="switchTab('settings')" id="tabBtn-settings" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
               <span>⚙️</span> Settings
             </button>
+          </div>
+
+          <!-- Tab: Communications (WhatsApp & Email) -->
+          <div id="tabContent-comm" class="tab-view hidden flex-1 flex flex-col gap-2.5 overflow-y-auto pr-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                <span>💬</span> Communications Center
+              </span>
+              <div class="flex items-center gap-1 text-[10px] bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                <button onclick="switchCommMode('wa')" id="commModeBtn-wa" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-medium transition-all">WhatsApp</button>
+                <button onclick="switchCommMode('mail')" id="commModeBtn-mail" class="px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all">Email</button>
+                <button onclick="switchCommMode('contacts')" id="commModeBtn-contacts" class="px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all">Contacts</button>
+                <button onclick="switchCommMode('config')" id="commModeBtn-config" class="px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all">⚙️</button>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: WhatsApp -->
+            <div id="commSub-wa" class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <input id="waRecipientInput" type="text" list="contactsDataList" placeholder="To: Name, 'Mom', or +919876543210..." class="flex-1 bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:border-emerald-500 font-sans">
+              </div>
+              <textarea id="waMessageInput" rows="3" placeholder="Type WhatsApp message..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl p-3 border border-slate-800 focus:outline-none focus:border-emerald-500 font-sans resize-none"></textarea>
+              <div class="flex items-center justify-between pt-1">
+                <label class="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer select-none">
+                  <input type="checkbox" id="waAutoSendCheck" checked class="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0">
+                  <span>⚡ Auto-send hands-free</span>
+                </label>
+                <button onclick="executeSendWhatsApp()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 transition-all active:scale-95">
+                  <span>🚀</span> Send WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: Email -->
+            <div id="commSub-mail" class="hidden flex flex-col gap-2">
+              <input id="mailToInput" type="text" list="contactsDataList" placeholder="To: Contact name or email address..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+              <input id="mailSubjectInput" type="text" placeholder="Subject line..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+              <textarea id="mailBodyInput" rows="3" placeholder="Email body or brief bullet points for AI polish..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl p-3 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans resize-none"></textarea>
+              <div class="flex items-center justify-between pt-1">
+                <button onclick="executeDraftEmail()" class="px-2.5 py-1.5 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 text-xs font-medium flex items-center gap-1 transition-all active:scale-95">
+                  <span>✍️</span> AI Polish
+                </button>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="executeCheckUnread()" title="Check Unread" class="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs transition-all">
+                    <span>📥</span> Inbox
+                  </button>
+                  <button onclick="executeSendEmail()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition-all active:scale-95">
+                    <span>✉️</span> Send
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: Contacts Book -->
+            <div id="commSub-contacts" class="hidden flex flex-col gap-2 overflow-y-auto">
+              <div class="flex items-center gap-1.5">
+                <input id="contactSearchInput" type="text" placeholder="Search contacts..." oninput="filterContactsGui(this.value)" class="flex-1 bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                <button onclick="toggleAddContactForm()" class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs transition-all flex items-center gap-1">
+                  <span>➕</span> Add
+                </button>
+              </div>
+
+              <!-- Add Contact Inline Form -->
+              <div id="addContactForm" class="hidden p-3 rounded-xl border border-slate-800 bg-slate-950/90 flex flex-col gap-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="newContactName" type="text" placeholder="Full Name *" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                  <input id="newContactNick" type="text" placeholder="Nickname (e.g. Mom)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="newContactPhone" type="text" placeholder="Phone (+91...)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                  <input id="newContactEmail" type="text" placeholder="Email" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                  <button onclick="toggleAddContactForm()" class="px-2.5 py-1 rounded-lg text-xs text-slate-400 hover:text-white">Cancel</button>
+                  <button onclick="executeSaveContact()" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs text-white font-medium">Save Contact</button>
+                </div>
+              </div>
+
+              <!-- Contacts Cards Container -->
+              <div id="contactsCardContainer" class="flex flex-col gap-1.5 overflow-y-auto max-h-[220px]">
+                <div class="text-xs text-slate-500 text-center py-4">Loading contacts...</div>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: Email Settings & Credentials -->
+            <div id="commSub-config" class="hidden flex flex-col gap-2 text-xs">
+              <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col gap-2">
+                <span class="font-semibold text-slate-200">Email & SMTP Setup</span>
+                <span class="text-[11px] text-slate-400">For direct sending & unread checks via Gmail/Outlook. (Default mail client works without credentials)</span>
+                <input id="cfgEmailAddr" type="text" placeholder="Your email (e.g. joshua@gmail.com)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+                <input id="cfgEmailPass" type="password" placeholder="App Password (16-char for Gmail)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="cfgSmtpHost" type="text" placeholder="SMTP Server" value="smtp.gmail.com" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                  <input id="cfgSmtpPort" type="number" placeholder="Port" value="587" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="cfgImapHost" type="text" placeholder="IMAP Server" value="imap.gmail.com" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                  <input id="cfgImapPort" type="number" placeholder="Port" value="993" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                </div>
+                <button onclick="executeSaveEmailConfig()" class="mt-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs text-white font-medium self-end">Save Settings</button>
+              </div>
+            </div>
+
+            <!-- Datalist for autocomplete -->
+            <datalist id="contactsDataList"></datalist>
           </div>
 
           <!-- Tab: Docs (Knowledge Vault) -->
@@ -1726,6 +1834,7 @@
       if (activeBtn) activeBtn.classList.add('tab-active');
       if (activeView) activeView.classList.remove('hidden');
 
+      if (tabId === 'comm') loadCommPanel();
       if (tabId === 'docs') loadIndexedDocuments();
       if (tabId === 'diagnostics') refreshTelemetry();
       if (tabId === 'memory') loadFacts();
@@ -2038,6 +2147,399 @@
               <span>💬</span> Follow-up
             </button>
             <span class="ml-auto font-mono text-indigo-400">Llama-3.2-11B-Vision</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // ═══════════════════ PHASE 6: HANDS-FREE WHATSAPP & EMAIL COMMUNICATIONS ═══════════════════
+
+    let activeCommMode = 'wa';
+    let cachedContacts = [];
+
+    function switchCommMode(mode) {
+      activeCommMode = mode;
+      ['wa', 'mail', 'contacts', 'config'].forEach(m => {
+        const btn = document.getElementById(`commModeBtn-${m}`);
+        const sub = document.getElementById(`commSub-${m}`);
+        if (btn) {
+          if (m === mode) {
+            btn.className = m === 'wa' ? 'px-2 py-0.5 rounded bg-emerald-600 text-white font-medium transition-all' :
+                            (m === 'mail' ? 'px-2 py-0.5 rounded bg-indigo-600 text-white font-medium transition-all' :
+                            'px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all');
+          } else {
+            btn.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all';
+          }
+        }
+        if (sub) {
+          if (m === mode) sub.classList.remove('hidden');
+          else sub.classList.add('hidden');
+        }
+      });
+
+      if (mode === 'contacts') loadContactsList();
+      if (mode === 'config') loadEmailConfigGui();
+    }
+
+    async function loadCommPanel() {
+      await loadContactsList();
+      loadEmailConfigGui();
+    }
+
+    async function loadContactsList() {
+      if (!hasBridge()) {
+        renderContactsList([
+          { id: 'c_self', name: 'Joshua', nickname: 'Me', phone: '+919876543210', email: 'joshua@example.com' },
+          { id: 'c_1', name: 'Alex Miller', nickname: 'Alex', phone: '+1234567890', email: 'alex@example.com' }
+        ]);
+        return;
+      }
+      try {
+        const contacts = await window.pywebview.api.get_contacts();
+        cachedContacts = contacts || [];
+        renderContactsList(cachedContacts);
+        updateContactsDatalist(cachedContacts);
+      } catch (err) {
+        console.error("Error loading contacts:", err);
+      }
+    }
+
+    function updateContactsDatalist(contacts) {
+      const dl = document.getElementById('contactsDataList');
+      if (!dl) return;
+      dl.innerHTML = '';
+      contacts.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.nickname || c.name;
+        opt.label = `${c.name} (${c.phone || c.email || ''})`;
+        dl.appendChild(opt);
+      });
+    }
+
+    function renderContactsList(contacts) {
+      const container = document.getElementById('contactsCardContainer');
+      if (!container) return;
+      if (!contacts || contacts.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">No contacts saved yet. Click "+ Add" above!</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      contacts.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'p-2.5 rounded-xl border border-slate-800/90 bg-slate-950/40 flex items-center justify-between text-xs hover:border-slate-700 transition-all';
+        const nickBadge = c.nickname ? `<span class="px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-800/40 text-[9px] text-blue-300 font-mono">${escapeHtml(c.nickname)}</span>` : '';
+        card.innerHTML = `
+          <div class="flex flex-col gap-0.5 min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-semibold text-slate-200 truncate">${escapeHtml(c.name)}</span>
+              ${nickBadge}
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+              ${c.phone ? `<span>📱 ${escapeHtml(c.phone)}</span>` : ''}
+              ${c.email ? `<span class="truncate">✉️ ${escapeHtml(c.email)}</span>` : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-1 shrink-0 ml-2">
+            ${c.phone ? `<button onclick="quickWaContact('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" title="Quick WhatsApp" class="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-800 text-emerald-300 transition-colors">💬</button>` : ''}
+            ${c.email ? `<button onclick="quickMailContact('${escapeHtml(c.email)}', '${escapeHtml(c.name)}')" title="Quick Email" class="p-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-800 text-indigo-300 transition-colors">✉️</button>` : ''}
+            <button onclick="deleteContactGui('${escapeHtml(c.id)}')" title="Delete Contact" class="p-1.5 rounded-lg hover:bg-rose-950/80 text-slate-500 hover:text-rose-400 transition-colors">🗑️</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterContactsGui(query) {
+      if (!query || !query.trim()) {
+        renderContactsList(cachedContacts);
+        return;
+      }
+      const q = query.toLowerCase();
+      const filtered = cachedContacts.filter(c => 
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.nickname && c.nickname.toLowerCase().includes(q)) ||
+        (c.phone && c.phone.toLowerCase().includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q))
+      );
+      renderContactsList(filtered);
+    }
+
+    function toggleAddContactForm() {
+      const f = document.getElementById('addContactForm');
+      if (f) f.classList.toggle('hidden');
+    }
+
+    async function executeSaveContact() {
+      const name = document.getElementById('newContactName')?.value?.trim();
+      const nick = document.getElementById('newContactNick')?.value?.trim() || '';
+      const phone = document.getElementById('newContactPhone')?.value?.trim() || '';
+      const email = document.getElementById('newContactEmail')?.value?.trim() || '';
+
+      if (!name) {
+        alert("Please provide a contact name.");
+        return;
+      }
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.save_contact(name, phone, email, nick);
+          if (res && res.status === 'success') {
+            toggleAddContactForm();
+            document.getElementById('newContactName').value = '';
+            document.getElementById('newContactNick').value = '';
+            document.getElementById('newContactPhone').value = '';
+            document.getElementById('newContactEmail').value = '';
+            loadContactsList();
+          } else {
+            alert(res.message || "Failed to save contact.");
+          }
+        } catch (e) {
+          console.error("Save contact error:", e);
+        }
+      }
+    }
+
+    async function deleteContactGui(contactId) {
+      if (!confirm("Are you sure you want to delete this contact?")) return;
+      if (hasBridge()) {
+        try {
+          await window.pywebview.api.delete_contact(contactId);
+          loadContactsList();
+        } catch (e) {
+          console.error("Delete contact error:", e);
+        }
+      }
+    }
+
+    function quickWaContact(phone, name) {
+      switchCommMode('wa');
+      const input = document.getElementById('waRecipientInput');
+      if (input) {
+        input.value = name || phone;
+        document.getElementById('waMessageInput')?.focus();
+      }
+    }
+
+    function quickMailContact(email, name) {
+      switchCommMode('mail');
+      const input = document.getElementById('mailToInput');
+      if (input) {
+        input.value = email;
+        document.getElementById('mailSubjectInput')?.focus();
+      }
+    }
+
+    async function executeSendWhatsApp() {
+      const rec = document.getElementById('waRecipientInput')?.value?.trim();
+      const msg = document.getElementById('waMessageInput')?.value?.trim();
+      const autoSend = document.getElementById('waAutoSendCheck')?.checked ?? true;
+
+      if (!rec) {
+        alert("Please enter a recipient name, nickname, or phone number.");
+        return;
+      }
+      if (!msg) {
+        alert("Please enter a message to send.");
+        return;
+      }
+
+      appendUserBubble(`WhatsApp to ${rec}: "${msg}"`);
+      setVoiceState('thinking');
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.send_whatsapp(rec, msg, autoSend);
+          if (res && res.status === 'success') {
+            appendCommDispatchBubble({
+              platform: 'WhatsApp',
+              recipient: res.recipient_name,
+              phone: res.recipient_phone,
+              message: res.message,
+              mode: res.mode,
+              auto_send: res.auto_send
+            });
+            document.getElementById('waMessageInput').value = '';
+          } else {
+            appendAiBubble("Could not dispatch WhatsApp: " + (res.message || "Unknown error"));
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          appendAiBubble("WhatsApp error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          appendCommDispatchBubble({
+            platform: 'WhatsApp',
+            recipient: rec,
+            phone: '+919876543210',
+            message: msg,
+            mode: 'demo',
+            auto_send: autoSend
+          });
+          setVoiceState('standby');
+        }, 1000);
+      }
+    }
+
+    async function executeSendEmail() {
+      const to = document.getElementById('mailToInput')?.value?.trim();
+      const subj = document.getElementById('mailSubjectInput')?.value?.trim();
+      const body = document.getElementById('mailBodyInput')?.value?.trim();
+
+      if (!to) {
+        alert("Please enter a recipient email or contact name.");
+        return;
+      }
+      if (!subj || !body) {
+        alert("Please enter both subject and body for the email.");
+        return;
+      }
+
+      appendUserBubble(`Send email to ${to} regarding "${subj}"`);
+      setVoiceState('thinking');
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.send_email(to, subj, body);
+          if (res && res.status === 'success') {
+            appendCommDispatchBubble({
+              platform: 'Email',
+              recipient: res.recipient_name || to,
+              email: res.to,
+              subject: res.subject,
+              body: body,
+              mode: res.mode
+            });
+            document.getElementById('mailBodyInput').value = '';
+          } else {
+            appendAiBubble("Could not send email: " + (res.message || "Unknown error"));
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          appendAiBubble("Email error: " + e);
+          setVoiceState('standby');
+        }
+      }
+    }
+
+    async function executeDraftEmail() {
+      const to = document.getElementById('mailToInput')?.value?.trim();
+      const bodyInput = document.getElementById('mailBodyInput');
+      const subjInput = document.getElementById('mailSubjectInput');
+      const rawText = bodyInput?.value?.trim() || subjInput?.value?.trim();
+
+      if (!rawText) {
+        alert("Please type a brief instruction or bullet points into the email body or subject first!");
+        return;
+      }
+
+      setVoiceState('thinking');
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.draft_email(rawText, to || null, "professional");
+          if (res && res.status === 'success') {
+            if (subjInput) subjInput.value = res.subject;
+            if (bodyInput) bodyInput.value = res.body;
+            appendAiBubble(`✍️ Drafted email for **${res.recipient_name || 'Recipient'}**!\n\n**Subject:** ${res.subject}\n\nYou can review it in the Comm tab before sending.`);
+          } else {
+            alert("Could not draft email: " + res.message);
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          setVoiceState('standby');
+          console.error("Draft email error:", e);
+        }
+      }
+    }
+
+    async function executeCheckUnread() {
+      setVoiceState('thinking');
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.check_unread_emails(5, true);
+          if (res && res.status === 'success') {
+            if (res.unread_count === 0) {
+              appendAiBubble("📥 You have **0 unread emails** in your inbox.");
+            } else {
+              const listText = res.emails.map(e => `• **${escapeHtml(e.sender)}**: ${escapeHtml(e.subject)}`).join('\n');
+              appendAiBubble(`📥 Found **${res.unread_count} unread emails**:\n\n${listText}`);
+            }
+          } else {
+            appendAiBubble("Inbox status: " + (res.message || res.summary || "Not configured."));
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          setVoiceState('standby');
+          appendAiBubble("Inbox check error: " + e);
+        }
+      }
+    }
+
+    async function loadEmailConfigGui() {
+      if (!hasBridge()) return;
+      try {
+        const cfg = await window.pywebview.api.get_email_config();
+        if (cfg) {
+          if (document.getElementById('cfgEmailAddr')) document.getElementById('cfgEmailAddr').value = cfg.email_address || '';
+          if (document.getElementById('cfgEmailPass')) document.getElementById('cfgEmailPass').value = cfg.email_password || '';
+          if (document.getElementById('cfgSmtpHost')) document.getElementById('cfgSmtpHost').value = cfg.smtp_server || 'smtp.gmail.com';
+          if (document.getElementById('cfgSmtpPort')) document.getElementById('cfgSmtpPort').value = cfg.smtp_port || 587;
+          if (document.getElementById('cfgImapHost')) document.getElementById('cfgImapHost').value = cfg.imap_server || 'imap.gmail.com';
+          if (document.getElementById('cfgImapPort')) document.getElementById('cfgImapPort').value = cfg.imap_port || 993;
+        }
+      } catch (e) {
+        console.error("Error loading email config:", e);
+      }
+    }
+
+    async function executeSaveEmailConfig() {
+      const email = document.getElementById('cfgEmailAddr')?.value?.trim();
+      const pass = document.getElementById('cfgEmailPass')?.value?.trim();
+      const smtpHost = document.getElementById('cfgSmtpHost')?.value?.trim() || 'smtp.gmail.com';
+      const smtpPort = parseInt(document.getElementById('cfgSmtpPort')?.value || '587');
+      const imapHost = document.getElementById('cfgImapHost')?.value?.trim() || 'imap.gmail.com';
+      const imapPort = parseInt(document.getElementById('cfgImapPort')?.value || '993');
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.save_email_config(email, pass, smtpHost, smtpPort, imapHost, imapPort);
+          alert(res.message || "Email settings saved!");
+        } catch (e) {
+          alert("Error saving email config: " + e);
+        }
+      }
+    }
+
+    function appendCommDispatchBubble(data) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const isWa = data.platform === 'WhatsApp';
+      const colorCls = isWa ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-indigo-500/50 bg-indigo-950/20';
+      const badgeCls = isWa ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white';
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono ${isWa ? 'text-emerald-400' : 'text-indigo-400'} pl-1">IGIRS AI Dispatch • ${time}</span>
+        <div class="w-full bg-slate-900/95 border ${colorCls} rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2">
+          <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${badgeCls} flex items-center gap-1">
+              <span>${isWa ? '📱' : '✉️'}</span> ${data.platform} Dispatched
+            </span>
+            <span class="text-[10px] font-mono text-slate-400">${escapeHtml(data.recipient)}</span>
+          </div>
+          ${data.subject ? `<div class="font-semibold text-slate-100">Subject: ${escapeHtml(data.subject)}</div>` : ''}
+          <div class="leading-relaxed whitespace-pre-wrap text-slate-300 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80">${escapeHtml(data.message || data.body || '')}</div>
+          <div class="flex items-center justify-between pt-1 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
+              <span>🔊</span> Re-speak
+            </button>
+            <span class="font-mono text-slate-500">${data.mode === 'native_desktop' ? 'Native WhatsApp Desktop' : (data.mode === 'smtp_direct' ? 'Direct SMTP' : 'Mail Client')}</span>
           </div>
         </div>
       `;

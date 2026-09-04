@@ -71,6 +71,11 @@ def print_help():
   {C_CYAN}/doc summary [file]{C_RESET}     - Generate structured executive summary of a document
   {C_CYAN}/doc list{C_RESET}               - List all documents indexed in the Knowledge Vault
   {C_CYAN}/doc clear{C_RESET}              - Clear all documents from Knowledge Vault
+  {C_CYAN}/wa <recipient> <msg>{C_RESET}   - Hands-free WhatsApp message dispatch (e.g. /wa Mom Heading home!)
+  {C_CYAN}/mail send <to> <sub|msg>{C_RESET}- Send email via SMTP or native mail client
+  {C_CYAN}/mail draft <prompt>{C_RESET}    - Draft a polished email using AI
+  {C_CYAN}/mail check{C_RESET}             - Check unread emails via IMAP
+  {C_CYAN}/contact <list|add|del>{C_RESET}  - Manage personal contacts and phone numbers
   {C_CYAN}/play <media title>{C_RESET}    - Search & play music on YouTube or Spotify
   {C_CYAN}/briefing{C_RESET}              - Daily morning briefing (weather, time, battery, reminders)
   {C_CYAN}/telemetry{C_RESET}             - Inspect computer CPU, RAM, and Battery status
@@ -399,6 +404,118 @@ def handle_slash_command(command: str, assistant: IGIRSAssistant) -> bool:
                 if len(spoken) > 280:
                     spoken = spoken[:280] + "..."
                 assistant.tts.speak(spoken)
+            return True
+
+    elif action in ("/wa", "/whatsapp"):
+        parts = arg.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            print(f"{C_RED}Usage: /wa <recipient_or_phone> <message>{C_RESET} (e.g. /wa Mom Heading home now!)")
+        else:
+            rec, msg = parts[0], parts[1]
+            print(f"{C_YELLOW}📱 Dispatching WhatsApp message to '{rec}'...{C_RESET}")
+            res = assistant.tools.whatsapp.send_message(recipient=rec, message=msg, auto_send=True)
+            if res.get("status") == "success":
+                print(f"{C_GREEN}✔ {res.get('summary')}{C_RESET}")
+                if assistant.tts.enabled:
+                    assistant.tts.speak(f"Dispatched WhatsApp to {res.get('recipient_name', rec)}.")
+            else:
+                print(f"{C_RED}Failed: {res.get('message')}{C_RESET}")
+        return True
+
+    elif action in ("/mail", "/email"):
+        parts = arg.strip().split(maxsplit=2)
+        sub = parts[0].lower() if parts else ""
+
+        if sub == "check":
+            print(f"{C_YELLOW}📥 Checking unread emails via IMAP...{C_RESET}")
+            res = assistant.tools.email.check_unread_emails()
+            if res.get("status") == "success":
+                print(f"\n{C_CYAN}{C_BOLD}Inbox Status ({res.get('unread_count')} unread):{C_RESET}")
+                for em in res.get("emails", []):
+                    print(f"  • {C_BOLD}{em.get('sender')}{C_RESET}: {em.get('subject')}")
+                print()
+                if assistant.tts.enabled and res.get("summary"):
+                    assistant.tts.speak(res["summary"])
+            else:
+                print(f"{C_YELLOW}{res.get('message', 'Could not check inbox.')}{C_RESET}")
+            return True
+
+        elif sub == "draft":
+            inst = parts[1] if len(parts) > 1 else ""
+            if not inst:
+                print(f"{C_RED}Usage: /mail draft <brief instructions for email>{C_RESET}")
+            else:
+                print(f"{C_YELLOW}✍️ AI Drafting email...{C_RESET}")
+                res = assistant.tools.email.draft_email(instruction=inst, llm_client=assistant.llm)
+                print(f"\n{C_CYAN}{C_BOLD}Subject:{C_RESET} {res.get('subject')}")
+                print(f"\n{C_CYAN}{C_BOLD}Body:{C_RESET}\n{res.get('body')}\n")
+            return True
+
+        elif sub == "send":
+            if len(parts) < 3:
+                print(f"{C_RED}Usage: /mail send <to_email_or_contact> <subject | body>{C_RESET}")
+            else:
+                to_addr = parts[1]
+                content = parts[2]
+                if "|" in content:
+                    subj, body = content.split("|", 1)
+                else:
+                    subj = "Message from Joshua"
+                    body = content
+                print(f"{C_YELLOW}✉️ Sending email to '{to_addr}'...{C_RESET}")
+                res = assistant.tools.email.send_email(to=to_addr, subject=subj.strip(), body=body.strip())
+                if res.get("status") == "success":
+                    print(f"{C_GREEN}✔ {res.get('summary')}{C_RESET}")
+                    if assistant.tts.enabled:
+                        assistant.tts.speak(f"Email processed for {to_addr}.")
+                else:
+                    print(f"{C_RED}Failed: {res.get('message')}{C_RESET}")
+            return True
+
+        else:
+            print(f"{C_RED}Usage: /mail <send|draft|check>{C_RESET}")
+            return True
+
+    elif action in ("/contact", "/contacts"):
+        parts = arg.strip().split(maxsplit=4)
+        sub = parts[0].lower() if parts else ""
+
+        if not sub or sub == "list":
+            contacts = assistant.tools.contacts.list_contacts()
+            print(f"\n{C_PURPLE}{C_BOLD}📇 Personal Contacts ({len(contacts)}):{C_RESET}")
+            for c in contacts:
+                nick = f" ({c['nickname']})" if c.get("nickname") else ""
+                print(f"  • {C_BOLD}{c.get('name')}{nick}{C_RESET} — Phone: {C_GREEN}{c.get('phone') or 'None'}{C_RESET} | Email: {C_CYAN}{c.get('email') or 'None'}{C_RESET} (ID: {c.get('id')})")
+            print()
+            return True
+
+        elif sub == "add":
+            if len(parts) < 3:
+                print(f"{C_RED}Usage: /contact add <Name> <Phone> [Email] [Nickname]{C_RESET}")
+            else:
+                c_name = parts[1]
+                c_phone = parts[2]
+                c_email = parts[3] if len(parts) > 3 else ""
+                c_nick = parts[4] if len(parts) > 4 else ""
+                contact = assistant.tools.contacts.add_contact(name=c_name, phone=c_phone, email=c_email, nickname=c_nick)
+                print(f"{C_GREEN}✔ Added contact '{contact['name']}' ({contact['phone']}) to address book.{C_RESET}")
+            return True
+
+        elif sub in ("del", "delete", "remove"):
+            if len(parts) < 2:
+                print(f"{C_RED}Usage: /contact del <name_or_id>{C_RESET}")
+            else:
+                target = parts[1]
+                contact = assistant.tools.contacts.get_contact(target)
+                if contact:
+                    assistant.tools.contacts.delete_contact(contact["id"])
+                    print(f"{C_GREEN}✔ Deleted contact '{contact['name']}'.{C_RESET}")
+                else:
+                    print(f"{C_RED}Contact not found: {target}{C_RESET}")
+            return True
+
+        else:
+            print(f"{C_RED}Usage: /contact <list|add|del>{C_RESET}")
             return True
 
     elif action in ("/play", "/music"):

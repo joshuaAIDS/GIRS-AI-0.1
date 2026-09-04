@@ -188,6 +188,28 @@ class IGIRSAssistant:
         if any(w in text for w in ["list documents", "my documents", "show files", "what documents", "show documents"]):
             selected_tool_names.add("list_indexed_documents")
 
+        # --- Phase 6: WhatsApp, Email & Contacts Triggers ---
+
+        # 16. WhatsApp Messaging
+        if any(w in text for w in ["whatsapp", "whats app"]) or re.search(r"\b(send|text|message)\s+(a\s+)?(message|text|whatsapp)\b", text) or "send whatsapp" in text or "on whatsapp" in text:
+            selected_tool_names.add("send_whatsapp")
+
+        # 17. Email & AI Drafting
+        email_triggers = ["email", "mail", "inbox", "gmail", "outlook"]
+        if any(w in text for w in email_triggers):
+            if any(w in text for w in ["check", "unread", "new mail", "any mail", "read my mail", "check inbox"]):
+                selected_tool_names.add("check_unread_emails")
+            elif any(w in text for w in ["draft", "compose", "write an email", "prepare email"]):
+                selected_tool_names.add("draft_email")
+                selected_tool_names.add("send_email")
+            else:
+                selected_tool_names.add("send_email")
+                selected_tool_names.add("draft_email")
+
+        # 18. Contacts Management
+        if any(w in text for w in ["contact", "contacts", "address book", "phone number", "phone no"]) and any(w in text for w in ["add", "save", "list", "show", "get", "find", "who", "delete", "remove", "what is"]):
+            selected_tool_names.add("manage_contacts")
+
         if not selected_tool_names:
             return None
 
@@ -277,13 +299,17 @@ class IGIRSAssistant:
                 # Add tool result to conversation history
                 self.memory.add_tool_response(call_id, fn_name, tool_output)
 
-            # If the only tool called was analyze_screen, query_documents, or summarize_document, output is already complete
-            if len(tool_calls) == 1 and tool_calls[0].get("function", {}).get("name") in ["analyze_screen", "query_documents", "summarize_document"]:
+            # If single-turn complete tools were called, output is already formatted
+            single_turn_tools = [
+                "analyze_screen", "query_documents", "summarize_document",
+                "send_whatsapp", "send_email", "draft_email", "check_unread_emails", "manage_contacts"
+            ]
+            if len(tool_calls) == 1 and tool_calls[0].get("function", {}).get("name") in single_turn_tools:
                 final_content = tool_output
                 try:
                     parsed_res = json.loads(tool_output)
                     if isinstance(parsed_res, dict):
-                        final_content = parsed_res.get("answer") or parsed_res.get("summary") or tool_output
+                        final_content = parsed_res.get("summary") or parsed_res.get("message") or parsed_res.get("answer") or tool_output
                 except Exception:
                     pass
 

@@ -12,6 +12,9 @@ NOTES_FILE = BASE_DIR / "notes_store.json"
 KNOWLEDGE_STORE_FILE = BASE_DIR / "knowledge_store.json"
 DOCUMENTS_DIR = BASE_DIR / "data_documents"
 DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
+CONTACTS_FILE = BASE_DIR / "contacts_store.json"
+EMAIL_CONFIG_FILE = BASE_DIR / "email_config.json"
+DEFAULT_COUNTRY_CODE = "+91"
 API_KEYS_FILE = BASE_DIR / "IGIRS AI (API KEYS).txt"
 
 # Load NVIDIA API Keys (Multi-key support with auto-rotation)

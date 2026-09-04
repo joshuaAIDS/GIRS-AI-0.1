@@ -30,6 +30,38 @@ temp_audio/
 err.log
 out.log
 
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Dependencies
+node_modules/
+dist/
+
+# API Keys & Secrets (CRITICAL SECURITY)
+*API KEYS*.txt
+*.key
+*.env
+*.env.local
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*.class
+*.pytest_cache/
+
+# Generated Temporary Audio & Files
+temp_audio/
+*.mp3
+*.wav
+
+# Logs
+*.log
+err.log
+out.log
+
 # System & IDE files
 .DS_Store
 Thumbs.db
@@ -40,3 +72,7 @@ Thumbs.db
 data_documents/
 knowledge_store.json
 scratch/test_docs/
+
+# Contacts & Email Configurations
+contacts_store.json
+email_config.json
