@@ -246,3 +246,65 @@ class DesktopApiBridge:
         """Searches YouTube and plays top video with autoplay."""
         import tools.media_controls as media_controls
         return media_controls.play_youtube(query=query, autoplay=autoplay)
+
+    # --- Screen Vision Bridge ---
+
+    def analyze_screen(
+        self,
+        question: str = "Describe what is currently on the screen",
+        focus_window: bool = False,
+        speak_response: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Captures active screen or focused window and generates multimodal AI vision analysis.
+        Returns analysis text and a base64 preview thumbnail for the GUI.
+        """
+        self.notify_state("thinking")
+        try:
+            from utils.vision import get_screen_preview_path
+            import base64
+
+            # Run analysis through registry
+            analysis = self._assistant.tools._tool_analyze_screen(
+                question=question,
+                focus_window=focus_window
+            )
+
+            # Get base64 preview thumbnail if available
+            preview_b64 = ""
+            prev_path = get_screen_preview_path()
+            if prev_path and prev_path.exists():
+                try:
+                    with open(prev_path, "rb") as f:
+                        preview_b64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+                except Exception as ex:
+                    logger.debug(f"Preview load error: {ex}")
+
+            if speak_response and self._assistant.tts.enabled:
+                # Provide a natural spoken summary (first 2 sentences or first bullet)
+                paragraphs = [p for p in analysis.split("\n\n") if p.strip()]
+                first_para = paragraphs[0] if paragraphs else analysis
+                spoken_text = first_para.replace("*", "").replace("#", "").strip()
+                if len(spoken_text) > 280:
+                    spoken_text = spoken_text[:280] + "..."
+                self._assistant.tts.speak(spoken_text)
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+
+            return {
+                "status": "success",
+                "question": question,
+                "analysis": analysis,
+                "preview_base64": preview_b64,
+                "focus_window": focus_window
+            }
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge screen analysis error: {e}")
+            return {
+                "status": "error",
+                "message": str(e),
+                "analysis": f"Screen analysis encountered an error: {e}",
+                "preview_base64": ""
+            }

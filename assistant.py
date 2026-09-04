@@ -98,8 +98,17 @@ class IGIRSAssistant:
         if re.search(r"\b(take a note|take note|save note|add note|write down|my notes|show notes|list notes|clear notes)\b", text):
             selected_tool_names.add("manage_notes")
 
-        # 5. Screen Vision
-        if any(w in text for w in ["screen", "on my screen", "look at my screen", "read my screen", "see my screen", "what am i looking at", "debug my screen"]):
+        # 5. Screen Vision & Multimodal Inspection
+        screen_vision_triggers = [
+            "screen", "on my screen", "look at my screen", "read my screen", "see my screen",
+            "what am i looking at", "debug my screen", "what's on my screen", "what is on my screen",
+            "read this error", "debug this error", "what error is this", "inspect screen",
+            "inspect window", "read this window", "explain my screen", "read screen", "vision"
+        ]
+        if any(w in text for w in screen_vision_triggers) or (
+            re.search(r"\b(look at|read|debug|inspect|explain|what is|what's)\b", text)
+            and any(w in text for w in ["screen", "window", "error", "dialog", "terminal", "page"])
+        ):
             selected_tool_names.add("analyze_screen")
 
         # 6. Media Playback (YouTube / Spotify)

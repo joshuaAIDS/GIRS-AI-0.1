@@ -65,6 +65,7 @@ def print_help():
 
   {C_PURPLE}{C_BOLD}[System & Assistant Tools]{C_RESET}
   {C_CYAN}/screen [question]{C_RESET}     - Multimodal Screen Vision: inspect/explain your screen
+  {C_CYAN}/screen window [q]{C_RESET}     - Multimodal Vision: inspect only the active foreground window
   {C_CYAN}/play <media title>{C_RESET}    - Search & play music on YouTube or Spotify
   {C_CYAN}/briefing{C_RESET}              - Daily morning briefing (weather, time, battery, reminders)
   {C_CYAN}/telemetry{C_RESET}             - Inspect computer CPU, RAM, and Battery status
@@ -292,12 +293,24 @@ def handle_slash_command(command: str, assistant: IGIRSAssistant) -> bool:
         return True
 
     elif action in ("/screen", "/vision"):
-        q = arg if arg else "Describe what is currently on my screen in detail."
-        print(f"\n{C_YELLOW}👁️ Capturing screen & analyzing with Llama-3.2-11B Vision...{C_RESET}")
-        analysis = assistant.tools._tool_analyze_screen(question=q)
+        focus_win = False
+        q = arg.strip()
+        if q.lower().startswith("window"):
+            focus_win = True
+            q = q[6:].strip() or "Describe what is currently visible in this active window."
+        elif not q:
+            q = "Describe what is currently on my screen in detail."
+
+        target_name = "active window" if focus_win else "full screen"
+        print(f"\n{C_YELLOW}👁️ Capturing {target_name} & analyzing with Llama-3.2-11B Vision...{C_RESET}")
+        analysis = assistant.tools._tool_analyze_screen(question=q, focus_window=focus_win)
         print(f"\n{C_CYAN}{C_BOLD}IGIRS Vision:{C_RESET} {analysis}\n")
         if assistant.tts.enabled:
-            assistant.tts.speak(analysis)
+            paragraphs = [p for p in analysis.split("\n\n") if p.strip()]
+            spoken = paragraphs[0].replace("*", "").replace("#", "").strip() if paragraphs else analysis
+            if len(spoken) > 280:
+                spoken = spoken[:280] + "..."
+            assistant.tts.speak(spoken)
         return True
 
     elif action in ("/play", "/music"):

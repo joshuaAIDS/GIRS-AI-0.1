@@ -266,6 +266,9 @@
             <input id="streamInput" type="text" placeholder="Speak or type a command..." 
               onkeydown="if(event.key==='Enter') sendStreamMessage()"
               class="flex-1 bg-slate-950/90 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3.5 py-2.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+            <button onclick="triggerScreenVision()" title="Multimodal Screen Vision: inspect/explain your screen (Ctrl+Shift+S)" class="p-2.5 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/50 text-indigo-300 hover:text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
             <button onclick="triggerVoiceCycle()" title="Push to Talk (Single Turn)" class="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all hover:scale-105">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
             </button>
@@ -495,6 +498,12 @@
     <!-- BOTTOM DOCK -->
     <footer class="hud-interactive glass-panel px-5 py-3 flex flex-wrap items-center justify-between gap-4 max-w-[1400px] w-full mx-auto">
       <div class="flex items-center gap-2 overflow-x-auto text-xs">
+        <button onclick="triggerScreenVision()" class="px-3 py-1.5 rounded-full bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/60 text-indigo-300 hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5 font-medium shadow-lg shadow-indigo-500/20 active:scale-95">
+          <span>👁️</span> Inspect Screen
+        </button>
+        <button onclick="triggerScreenVision('Examine the active window, diagnose any error messages, and explain how to fix them', true)" class="px-3 py-1.5 rounded-full bg-rose-950/90 hover:bg-rose-900 border border-rose-500/60 text-rose-300 hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5 font-medium shadow-lg shadow-rose-500/20 active:scale-95">
+          <span>🐛</span> Debug Error
+        </button>
         <button onclick="insertPrompt('Check system diagnostics and battery')" class="px-3 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 transition-all whitespace-nowrap">
           ⚡ Diagnostics
         </button>
@@ -1764,8 +1773,102 @@
       }
     }
 
+    // ═══════════════════ MULTIMODAL SCREEN VISION ENGINE ═══════════════════
+
+    async function triggerScreenVision(question = "Describe what is currently on the screen", focusWindow = false) {
+      appendUserBubble(question, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const scanBadge = document.createElement('div');
+      scanBadge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
+      scanBadge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+        <span class="font-mono">🔍 Capturing ${focusWindow ? 'active window' : 'live screen'} & analyzing with NVIDIA Multimodal Vision...</span>
+      `;
+      stream.appendChild(scanBadge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.analyze_screen(question, focusWindow);
+          scanBadge.remove();
+
+          if (res && res.status === 'success') {
+            appendVisionBubble(res);
+
+            // Wait for spoken response if TTS is speaking
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble("Vision analysis could not be completed: " + (res.message || "Unknown error"));
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          scanBadge.remove();
+          appendAiBubble("Screen vision error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          scanBadge.remove();
+          appendAiBubble("Browser Simulation: Screen captured and analyzed. Terminal and browser windows detected.");
+          setVoiceState('standby');
+        }, 1500);
+      }
+    }
+
+    function appendVisionBubble(data) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const scopeTag = data.focus_window ? "Active Window Focus" : "Full Desktop Display";
+      const imgHtml = data.preview_base64 ? `
+        <div class="relative group rounded-xl overflow-hidden border border-indigo-500/30 shadow-md bg-black/40 mt-1 cursor-pointer" onclick="window.open('${data.preview_base64}')">
+          <img src="${data.preview_base64}" alt="Captured Screen" class="w-full max-h-48 object-cover rounded-lg group-hover:scale-[1.02] transition-transform duration-300">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2 opacity-90 group-hover:opacity-100 transition-opacity">
+            <span class="text-[10px] font-mono text-cyan-300 flex items-center gap-1">
+              <span>🔍</span> Click to expand high-res capture
+            </span>
+          </div>
+        </div>
+      ` : '';
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-indigo-400 pl-1">IGIRS AI Vision Engine • ${time} • <span class="text-cyan-400">${scopeTag}</span></span>
+        <div class="w-full bg-slate-900/95 border border-indigo-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2.5">
+          ${imgHtml}
+          <div class="leading-relaxed whitespace-pre-wrap text-slate-200 mt-1">${escapeHtml(data.analysis)}</div>
+          <div class="flex items-center gap-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="triggerScreenVision('${escapeHtml(data.question)}', false)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔁</span> Re-scan
+            </button>
+            <button onclick="triggerScreenVision('Explain errors or code in active window', true)" class="px-2.5 py-1 rounded bg-rose-950/80 hover:bg-rose-900 border border-rose-700/50 text-rose-300 transition-colors flex items-center gap-1">
+              <span>🐛</span> Debug Window
+            </button>
+            <span class="ml-auto font-mono text-indigo-400">Llama-3.2-11B-Vision</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
     // Global Key & Canvas Barge-In Listeners
     document.addEventListener('keydown', async (e) => {
+      // Ctrl+Shift+S triggers instant Multimodal Screen Vision
+      if (e.ctrlKey && e.shiftKey && (e.code === 'KeyS' || e.key === 'S' || e.key === 's')) {
+        e.preventDefault();
+        console.log("👁️ Ctrl+Shift+S Screen Vision Hotkey triggered!");
+        triggerScreenVision();
+        return;
+      }
+
       // If user presses Spacebar or Escape while assistant is speaking, trigger instant barge-in!
       if ((e.code === 'Space' || e.code === 'Escape') && currentVoiceState === 'speaking') {
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';

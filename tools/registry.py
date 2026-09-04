@@ -158,13 +158,17 @@ class ToolRegistry:
         # 7. Screen Vision Tool
         self.register(
             name="analyze_screen",
-            description="Inspect, read, debug, or summarize whatever is currently displayed on the user's computer screen using multimodal computer vision. Call this when the user asks 'what is on my screen', 'look at my screen', 'read this screen', or 'help me debug this on my screen'.",
+            description="Inspect, read, debug, or summarize whatever is currently displayed on the user's computer screen or active window using multimodal computer vision. Call this when the user asks 'what is on my screen', 'look at my screen', 'read this screen', 'debug this error', or 'what window is open'.",
             parameters={
                 "type": "object",
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The specific question or prompt about what is visible on the screen."
+                        "description": "The specific question or prompt about what is visible on the screen or window."
+                    },
+                    "focus_window": {
+                        "type": "boolean",
+                        "description": "If true, crops specifically to the active foreground window instead of the entire desktop."
                     }
                 }
             },
@@ -599,11 +603,22 @@ class ToolRegistry:
             return f"Fact was already known: '{fact}'"
         return f"Recorded fact: '{fact}'"
 
-    def _tool_analyze_screen(self, question: str = "Describe what is currently on the screen", **kwargs) -> str:
-        """Captures active screen and analyzes it using multimodal vision."""
+    def _tool_analyze_screen(
+        self,
+        question: str = "Describe what is currently on the screen",
+        focus_window: bool = False,
+        **kwargs
+    ) -> str:
+        """Captures active screen or focused window and analyzes it using multimodal vision."""
         try:
             from utils.vision import capture_screen_base64
-            b64 = capture_screen_base64(max_width=1280)
+
+            # Auto-detect if question asks specifically about a window
+            q_lower = (question or "").lower()
+            if any(w in q_lower for w in ["this window", "active window", "focused window", "this app", "this dialog"]):
+                focus_window = True
+
+            b64 = capture_screen_base64(max_width=1280, focus_window=focus_window)
             if not b64:
                 return "Could not capture the screen at this moment. Please verify display permissions."
 
@@ -611,11 +626,22 @@ class ToolRegistry:
                 from llm.nvidia_client import NvidiaLLMClient
                 self.llm_client = NvidiaLLMClient()
 
-            prompt = f"Analyze what is on the user's screen and answer: '{question}'. Be accurate, clear, and direct."
+            target_scope = "focused active window" if focus_window else "entire active screen"
+            prompt = (
+                f"The user has captured their {target_scope} and asked: '{question}'.\n"
+                f"Carefully examine all visible elements (windows, applications, code, terminal outputs, error logs, text, UI controls, or documents).\n"
+                f"Provide a clear, direct, and actionable answer. If there is an error on screen, identify the cause and explain how to fix it."
+            )
+
+            system_prompt = (
+                "You are IGIRS AI Multimodal Vision Engine. You inspect the user's live desktop screen with superhuman precision. "
+                "Be concise, accurate, and direct. Break down key observations into readable points."
+            )
+
             analysis = self.llm_client.vision_chat_completion(
                 prompt=prompt,
                 image_base64=b64,
-                system_prompt="You are IGIRS AI, a smart desktop assistant. Explain whatever is on the user's screen clearly and concisely."
+                system_prompt=system_prompt
             )
             return analysis
         except Exception as e:
