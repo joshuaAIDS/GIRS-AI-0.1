@@ -4,6 +4,7 @@ Exposes assistant methods, live telemetry, Fact Vault, and voice controls to pyw
 Uses private attributes to prevent pywebview from recursively introspecting native window objects.
 """
 import logging
+import base64
 from typing import Dict, Any, List, Optional
 import config
 from assistant import IGIRSAssistant
