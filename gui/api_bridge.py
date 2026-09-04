@@ -308,3 +308,53 @@ class DesktopApiBridge:
                 "analysis": f"Screen analysis encountered an error: {e}",
                 "preview_base64": ""
             }
+
+    def analyze_uploaded_image(
+        self,
+        image_base64: str,
+        question: str = "Analyze this image in detail",
+        speak_response: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Analyzes a user-uploaded image or screenshot using multimodal AI vision.
+        """
+        self.notify_state("thinking")
+        try:
+            raw_b64 = image_base64
+            if "base64," in raw_b64:
+                raw_b64 = raw_b64.split("base64,")[1]
+
+            analysis = self._assistant.tools._tool_analyze_screen(
+                question=question,
+                image_base64=raw_b64
+            )
+
+            preview_b64 = image_base64 if image_base64.startswith("data:") else f"data:image/jpeg;base64,{raw_b64}"
+
+            if speak_response and self._assistant.tts.enabled:
+                paragraphs = [p for p in analysis.split("\n\n") if p.strip()]
+                first_para = paragraphs[0] if paragraphs else analysis
+                spoken_text = first_para.replace("*", "").replace("#", "").strip()
+                if len(spoken_text) > 280:
+                    spoken_text = spoken_text[:280] + "..."
+                self._assistant.tts.speak(spoken_text)
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+
+            return {
+                "status": "success",
+                "question": question,
+                "analysis": analysis,
+                "preview_base64": preview_b64,
+                "is_upload": True
+            }
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge image analysis error: {e}")
+            return {
+                "status": "error",
+                "message": str(e),
+                "analysis": f"Image analysis encountered an error: {e}",
+                "preview_base64": image_base64
+            }

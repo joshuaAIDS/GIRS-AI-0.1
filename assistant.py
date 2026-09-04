@@ -258,6 +258,18 @@ class IGIRSAssistant:
                 # Add tool result to conversation history
                 self.memory.add_tool_response(call_id, fn_name, tool_output)
 
+            # If the only tool called was analyze_screen, the vision output is already the final complete analysis
+            if len(tool_calls) == 1 and tool_calls[0].get("function", {}).get("name") == "analyze_screen":
+                final_content = tool_output
+                self.memory.add_assistant_message(final_content)
+                if speak_response:
+                    paragraphs = [p for p in final_content.split("\n\n") if p.strip()]
+                    spoken = paragraphs[0].replace("*", "").replace("#", "").strip() if paragraphs else final_content
+                    if len(spoken) > 280:
+                        spoken = spoken[:280] + "..."
+                    self.tts.speak(spoken)
+                return final_content
+
             # 5. Call LLM again to get final answer incorporating tool outputs
             second_messages = self.memory.get_messages_for_llm(system_prompt)
             second_response = self.llm.chat_completion(
@@ -289,6 +301,9 @@ class IGIRSAssistant:
                         elif tool_fn == "play_media":
                             args = parsed.get("parameters") or parsed.get("arguments") or {}
                             content = self.tools.execute_tool("play_media", args)
+                        elif tool_fn == "analyze_screen":
+                            args = parsed.get("parameters") or parsed.get("arguments") or {}
+                            content = self.tools.execute_tool("analyze_screen", args)
                         else:
                             content = f"All set, {self.memory.user_name}!"
                 except Exception:

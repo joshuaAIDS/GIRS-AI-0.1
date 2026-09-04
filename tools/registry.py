@@ -607,18 +607,33 @@ class ToolRegistry:
         self,
         question: str = "Describe what is currently on the screen",
         focus_window: bool = False,
+        image_base64: Optional[str] = None,
+        image_path: Optional[str] = None,
         **kwargs
     ) -> str:
         """Captures active screen or focused window and analyzes it using multimodal vision."""
         try:
             from utils.vision import capture_screen_base64
 
+            # If user provided a file path or direct base64
+            b64 = image_base64
+            if not b64 and image_path:
+                try:
+                    p = Path(image_path)
+                    if p.exists():
+                        with open(p, "rb") as f:
+                            b64 = base64.b64encode(f.read()).decode("utf-8")
+                except Exception as ex:
+                    logger.debug(f"Could not load image_path {image_path}: {ex}")
+
             # Auto-detect if question asks specifically about a window
             q_lower = (question or "").lower()
             if any(w in q_lower for w in ["this window", "active window", "focused window", "this app", "this dialog"]):
                 focus_window = True
 
-            b64 = capture_screen_base64(max_width=1280, focus_window=focus_window)
+            if not b64:
+                b64 = capture_screen_base64(max_width=1280, focus_window=focus_window)
+
             if not b64:
                 return "Could not capture the screen at this moment. Please verify display permissions."
 
@@ -627,16 +642,43 @@ class ToolRegistry:
                 self.llm_client = NvidiaLLMClient()
 
             target_scope = "focused active window" if focus_window else "entire active screen"
-            prompt = (
-                f"The user has captured their {target_scope} and asked: '{question}'.\n"
-                f"Carefully examine all visible elements (windows, applications, code, terminal outputs, error logs, text, UI controls, or documents).\n"
-                f"Provide a clear, direct, and actionable answer. If there is an error on screen, identify the cause and explain how to fix it."
-            )
+            
+            # Detect specialized vision mode
+            is_error_debug = any(w in q_lower for w in ["error", "debug", "bug", "exception", "traceback", "fail", "crash"])
+            is_doc_reading = any(w in q_lower for w in ["read document", "read text", "ocr", "pdf", "transcribe", "what does it say", "read this"])
 
-            system_prompt = (
-                "You are IGIRS AI Multimodal Vision Engine. You inspect the user's live desktop screen with superhuman precision. "
-                "Be concise, accurate, and direct. Break down key observations into readable points."
-            )
+            if is_error_debug:
+                system_prompt = (
+                    "You are IGIRS AI Diagnostic Engineer. Your job is to analyze screens containing terminal errors, "
+                    "code exceptions, stack traces, and software bugs. Identify the root cause immediately and provide "
+                    "the exact terminal command or code correction needed to resolve it."
+                )
+                prompt = (
+                    f"The user needs help debugging their {target_scope}. Specific question: '{question}'.\n"
+                    f"1. Pinpoint the exact error message, file name, line number, or status code.\n"
+                    f"2. Explain why the issue occurred in plain language.\n"
+                    f"3. Provide the exact command line or code fix to resolve it."
+                )
+            elif is_doc_reading:
+                system_prompt = (
+                    "You are IGIRS AI Document & OCR Engine. You transcribe, summarize, and extract information from documents, "
+                    "articles, web pages, tables, and PDFs visible on the user's screen with extreme fidelity."
+                )
+                prompt = (
+                    f"The user wants you to read and extract information from their {target_scope}. Specific request: '{question}'.\n"
+                    f"1. Transcribe the key text, headings, and data visible.\n"
+                    f"2. Provide a clear, bulleted summary of the core information."
+                )
+            else:
+                system_prompt = (
+                    "You are IGIRS AI Multimodal Vision Engine. You inspect the user's live desktop screen with superhuman precision. "
+                    "Be concise, accurate, and direct. Break down key observations into readable points."
+                )
+                prompt = (
+                    f"The user has captured their {target_scope} and asked: '{question}'.\n"
+                    f"Carefully examine all visible elements (windows, applications, code, terminal outputs, error logs, text, UI controls, or documents).\n"
+                    f"Provide a clear, direct, and actionable answer. If there is an error on screen, identify the cause and explain how to fix it."
+                )
 
             analysis = self.llm_client.vision_chat_completion(
                 prompt=prompt,
