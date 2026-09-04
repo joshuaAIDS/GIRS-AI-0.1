@@ -89,6 +89,7 @@ def mute_volume(mute: bool = True) -> Dict[str, Any]:
 
 def get_brightness() -> Dict[str, Any]:
     """Queries current screen brightness percentage."""
+    # Method 1: screen_brightness_control
     try:
         import screen_brightness_control as sbc
         levels = sbc.get_brightness()
@@ -99,13 +100,33 @@ def get_brightness() -> Dict[str, Any]:
             "message": f"Screen brightness is currently at {int(val)}%."
         }
     except Exception as e:
-        logger.error(f"Failed to query brightness: {e}")
-        return {"success": False, "error": str(e), "message": f"Could not read screen brightness: {e}"}
+        logger.debug(f"sbc get_brightness error: {e}")
+
+    # Method 2: Native Windows WMI fallback
+    try:
+        import subprocess
+        out = subprocess.check_output(
+            ["powershell", "-NoProfile", "-Command", "(Get-WmiObject -Namespace root/Wmi -Class WmiMonitorBrightness).CurrentBrightness"],
+            text=True,
+            timeout=3
+        ).strip()
+        if out.isdigit():
+            val = int(out)
+            return {
+                "success": True,
+                "brightness_percent": val,
+                "message": f"Screen brightness is currently at {val}%."
+            }
+    except Exception as e:
+        logger.error(f"WMI get_brightness error: {e}")
+
+    return {"success": False, "message": "Could not read screen brightness."}
 
 def set_brightness(level_percent: int) -> Dict[str, Any]:
     """Sets screen brightness to an exact percentage (0 - 100)."""
+    level_percent = max(0, min(100, int(level_percent)))
+    # Method 1: screen_brightness_control
     try:
-        level_percent = max(0, min(100, int(level_percent)))
         import screen_brightness_control as sbc
         sbc.set_brightness(level_percent)
         return {
@@ -114,8 +135,25 @@ def set_brightness(level_percent: int) -> Dict[str, Any]:
             "message": f"Screen brightness adjusted to {level_percent}%."
         }
     except Exception as e:
-        logger.error(f"Failed to set brightness to {level_percent}%: {e}")
-        return {"success": False, "error": str(e), "message": f"Could not adjust brightness: {e}"}
+        logger.debug(f"sbc set_brightness error: {e}")
+
+    # Method 2: Native Windows WMI fallback
+    try:
+        import subprocess
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", f"(Get-WmiObject -Namespace root/Wmi -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1, {level_percent})"],
+            capture_output=True,
+            timeout=3
+        )
+        return {
+            "success": True,
+            "brightness_percent": level_percent,
+            "message": f"Screen brightness adjusted to {level_percent}%."
+        }
+    except Exception as e:
+        logger.error(f"WMI set_brightness error: {e}")
+
+    return {"success": False, "message": f"Could not adjust brightness to {level_percent}%."}
 
 def take_screenshot(filename: Optional[str] = None) -> Dict[str, Any]:
     """
