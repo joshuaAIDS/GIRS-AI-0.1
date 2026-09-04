@@ -1,0 +1,4 @@
+# Paste your NVIDIA NIM API Keys here (one per line).
+# Get free keys at: https://build.nvidia.com/
+# Example:
+# nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

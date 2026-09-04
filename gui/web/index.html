@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IGIRS AI — 3D Cyber Command Center</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-void: #03050A;
+      --bg-elevated: rgba(10, 14, 26, 0.75);
+      --bg-surface: rgba(16, 22, 40, 0.85);
+      --bg-inset: rgba(6, 9, 20, 0.9);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(58, 134, 255, 0.3);
+      --text-primary: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --text-tertiary: #64748B;
+      --orb-accent: #3a86ff;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* 3D WebGL Canvas */
+    #webglCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      display: block;
+      cursor: grab;
+    }
+    #webglCanvas:active {
+      cursor: grabbing;
+    }
+
+    /* Glassmorphic Floating HUD Layer */
+    .hud-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.25rem;
+    }
+    .hud-interactive {
+      pointer-events: auto;
+    }
+
+    .glass-panel {
+      background: var(--bg-elevated);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+    .glass-panel:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 8px; }
+
+    .tab-active {
+      color: #FFFFFF !important;
+      background: rgba(255, 255, 255, 0.08);
+      border-bottom: 2px solid #3a86ff;
+    }
+
+    /* Floating drag hint */
+    .drag-hint {
+      animation: fadeHint 5s ease-in-out forwards;
+    }
+    @keyframes fadeHint {
+      0% { opacity: 0; transform: translateY(8px); }
+      15% { opacity: 0.95; transform: translateY(0); }
+      85% { opacity: 0.95; }
+      100% { opacity: 0; pointer-events: none; }
+    }
+  </style>
+</head>
+<body class="selection:bg-blue-600 selection:text-white">
+
+  <!-- ═══════════════════ NATIVE WEBGL 3D ORB CANVAS ═══════════════════ -->
+  <canvas id="webglCanvas"></canvas>
+
+  <!-- Drag Hint Notification -->
+  <div class="drag-hint fixed bottom-20 right-6 z-20 hud-interactive px-4 py-2 rounded-full bg-slate-950/80 border border-slate-700/60 text-xs text-slate-300 font-mono flex items-center gap-2.5 backdrop-blur-md shadow-2xl">
+    <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+    <span>✨ Drag to rotate 3D Orb</span>
+  </div>
+
+  <!-- ═══════════════════ FLOATING HUD INTERFACE ═══════════════════ -->
+  <div class="hud-layer">
+
+    <!-- TOP HEADER -->
+    <header class="hud-interactive glass-panel px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 max-w-[1400px] w-full mx-auto">
+      <!-- Left Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 shadow-lg shadow-blue-500/25 border border-blue-400/40">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+            <path d="M2 12h20"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-base font-bold tracking-tight bg-gradient-to-r from-blue-400 via-sky-200 to-indigo-300 bg-clip-text text-transparent">
+              IGIRS AI
+            </span>
+            <span class="px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider rounded-md bg-blue-950/90 text-blue-300 border border-blue-800/60">
+              3D Orb Live
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+            <span>🗣️ Tamil + English</span>
+            <span>•</span>
+            <span class="text-blue-400 font-mono">Nemotron-3-Ultra-550B</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Center Status -->
+      <div class="flex items-center gap-3">
+        <div class="px-4 py-1.5 rounded-full bg-slate-950/80 border border-slate-800 flex items-center gap-2.5 shadow-inner">
+          <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+          <span id="statusLabel" class="text-xs font-semibold font-mono text-slate-200 tracking-wide uppercase">
+            STANDBY: "HEY IGRIS"
+          </span>
+          <span class="text-slate-600">|</span>
+          <span id="liveClock" class="text-xs font-mono text-slate-400">--:--:--</span>
+        </div>
+
+        <!-- Always Listening Toggle -->
+        <button id="alwaysListeningBtn" onclick="toggleAlwaysListening()" title="Toggle Continuous Hands-Free Listening" 
+          class="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold transition-all border flex items-center gap-2 bg-slate-950/90 border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/40">
+          <span id="alwaysListeningDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+          <span id="alwaysListeningText">Always Listening: OFF</span>
+        </button>
+      </div>
+
+      <!-- Right Voice State Tester -->
+      <div class="flex items-center gap-2">
+        <div class="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
+          <button onclick="setVoiceState('standby')" id="btn-standby" class="px-2.5 py-1 rounded-lg text-white bg-blue-600/30 border border-blue-500/40 transition-all">Idle (Blue)</button>
+          <button onclick="setVoiceState('listening')" id="btn-listening" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-emerald-400 transition-all">Listen (Cyan)</button>
+          <button onclick="setVoiceState('thinking')" id="btn-thinking" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-rose-400 transition-all">Reason (Red)</button>
+          <button onclick="setVoiceState('speaking')" id="btn-speaking" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-purple-400 transition-all">Speak (Purple)</button>
+        </div>
+        <button onclick="toggleHud()" class="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs flex items-center gap-1.5 transition-all">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <span id="toggleText">Hide Panels</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MIDDLE SECTION: Floating HUD Panels -->
+    <main id="hudPanels" class="grid grid-cols-1 lg:grid-cols-12 gap-5 my-auto max-w-[1400px] w-full mx-auto transition-opacity duration-300">
+      
+      <!-- LEFT HUD: Chat Stream -->
+      <div class="lg:col-span-5 flex flex-col gap-3">
+        <div class="hud-interactive glass-panel p-5 flex flex-col h-[440px] shadow-2xl">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800/80 text-xs text-slate-400">
+            <span class="flex items-center gap-2 font-semibold text-slate-200">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              Live Assistant Stream
+            </span>
+            <button onclick="clearChat()" class="hover:text-rose-400 transition-colors text-[11px] font-mono">
+              Clear Log
+            </button>
+          </div>
+
+          <!-- Messages -->
+          <div id="chatStream" class="flex-1 overflow-y-auto py-3 space-y-3.5 pr-1.5">
+            <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60 text-xs text-slate-400 flex items-start gap-2.5">
+              <span class="text-blue-400 font-mono text-sm">⚡</span>
+              <div>
+                <p class="font-semibold text-slate-200">3D Wireframe Orb Core Active</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Wake word <strong class="text-blue-400 font-mono">"HEY IGRIS"</strong> ready. Drag 3D Orb to explore.
+                </p>
+              </div>
+            </div>
+
+            <!-- User message -->
+            <div class="flex flex-col items-end gap-1">
+              <span class="text-[10px] font-mono text-slate-400 pr-1">Joshua • 17:25</span>
+              <div class="max-w-[85%] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-xs leading-relaxed shadow-lg">
+                Hey Igris, check system health and test Tamil voice response.
+              </div>
+            </div>
+
+            <!-- Tool Badge -->
+            <div class="max-w-[90%] bg-slate-950/90 border border-amber-500/30 rounded-xl p-3 flex flex-col gap-1.5 shadow-lg">
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 text-amber-400 font-mono font-medium text-[11px]">
+                  <span>⚙️</span> Tool Invocation: system_diagnostics()
+                </span>
+                <span class="px-2 py-0.5 text-[9px] font-mono rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+                  200 OK (62ms)
+                </span>
+              </div>
+              <div class="text-[10px] font-mono text-slate-300 bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 truncate">
+                CPU: 14% | RAM: 48% | Battery: 92% ⚡ AC
+              </div>
+            </div>
+
+            <!-- Assistant response -->
+            <div class="flex flex-col items-start gap-1">
+              <span class="text-[10px] font-mono text-blue-400 pl-1">IGIRS AI • 17:25</span>
+              <div class="max-w-[90%] bg-slate-900/90 border border-slate-800 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-xl flex flex-col gap-2">
+                <p>
+                  System diagnostics are optimal. CPU load is <strong>14%</strong>, RAM is <strong>48%</strong>, and battery is <strong>92% (Plugged In)</strong>.
+                </p>
+                <p class="text-[11px] text-purple-300 italic border-l-2 border-purple-500 pl-2.5 mt-1">
+                  "வணக்கம்! அனைத்து சிஸ்டங்களும் சீராக இயங்குகின்றன."
+                </p>
+                <div class="flex items-center gap-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
+                  <button onclick="setVoiceState('speaking')" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
+                    <span>🔊</span> Re-speak
+                  </button>
+                  <span class="ml-auto font-mono text-slate-500">Nemotron-3-Ultra</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Mini Input -->
+          <div class="pt-3 border-t border-slate-800/80 flex items-center gap-2">
+            <input id="streamInput" type="text" placeholder="Speak or type a command..." 
+              onkeydown="if(event.key==='Enter') sendStreamMessage()"
+              class="flex-1 bg-slate-950/90 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3.5 py-2.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+            <button onclick="triggerVoiceCycle()" title="Push to Talk (Single Turn)" class="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all hover:scale-105">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </button>
+            <button id="inputAlwaysListeningBtn" onclick="toggleAlwaysListening()" title="Toggle Hands-Free Continuous Voice Mode" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-emerald-400 transition-all">
+              <span class="font-mono text-xs font-bold">⚡</span>
+            </button>
+            <button onclick="sendStreamMessage()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition-all">
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER SPACER: Lets the 3D Orb shine in center -->
+      <div class="hidden lg:flex lg:col-span-2 flex-col items-center justify-center gap-3">
+        <button onclick="triggerVoiceCycle()" class="hud-interactive px-4 py-2 rounded-full bg-slate-950/70 border border-blue-500/30 text-xs font-mono text-blue-300 hover:text-white hover:border-blue-400 backdrop-blur-md transition-all shadow-xl hover:scale-105 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+          <span>🎙️ Push to Talk</span>
+        </button>
+        <button id="centerAlwaysListeningBtn" onclick="toggleAlwaysListening()" class="hud-interactive px-4 py-2 rounded-full bg-slate-950/70 border border-slate-700/60 text-xs font-mono text-slate-300 hover:text-emerald-300 hover:border-emerald-500/50 backdrop-blur-md transition-all shadow-xl hover:scale-105 flex items-center gap-2">
+          <span id="centerAlwaysDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+          <span id="centerAlwaysText">⚡ Continuous Voice</span>
+        </button>
+      </div>
+
+      <!-- RIGHT HUD: Fact Vault & Telemetry -->
+      <div class="lg:col-span-5 flex flex-col gap-3">
+        <div class="hud-interactive glass-panel p-5 flex flex-col h-[440px] shadow-2xl">
+          <!-- Tabs -->
+          <div class="flex items-center border-b border-slate-800 pb-2 mb-3 gap-1">
+            <button onclick="switchTab('memory')" id="tabBtn-memory" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 tab-active transition-all">
+              🧠 Fact Vault
+            </button>
+            <button onclick="switchTab('diagnostics')" id="tabBtn-diagnostics" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all">
+              ⚡ Telemetry & Tools
+            </button>
+            <button onclick="switchTab('settings')" id="tabBtn-settings" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all">
+              ⚙️ Settings
+            </button>
+          </div>
+
+          <!-- Tab: Memory -->
+          <div id="tabContent-memory" class="tab-view flex-1 flex flex-col gap-3 overflow-y-auto">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-300">Persistent Facts</span>
+              <span class="text-[10px] font-mono text-blue-400">facts_store.json</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input id="newFactInput" type="text" placeholder="Add memory (e.g. 'Lives in Chennai')..." 
+                class="flex-1 bg-slate-950 text-xs text-slate-200 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-blue-500">
+              <button onclick="addFact()" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white">
+                + Add
+              </button>
+            </div>
+            <div id="factsList" class="flex-1 space-y-2 overflow-y-auto pr-1">
+              <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group">
+                <span class="text-slate-300">• User's name is Joshua</span>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group">
+                <span class="text-slate-300">• Preferred language: Tamil + English</span>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group">
+                <span class="text-slate-300">• 3D AI Assistant UI in progress</span>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Diagnostics -->
+          <div id="tabContent-diagnostics" class="tab-view hidden flex-1 flex flex-col gap-3 overflow-y-auto">
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span class="text-[10px] text-slate-400 font-mono">CPU LOAD</span>
+                <p class="text-sm font-bold font-mono text-blue-400 mt-1">14%</p>
+              </div>
+              <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span class="text-[10px] text-slate-400 font-mono">RAM USAGE</span>
+                <p class="text-sm font-bold font-mono text-purple-400 mt-1">48%</p>
+              </div>
+              <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span class="text-[10px] text-slate-400 font-mono">BATTERY</span>
+                <p class="text-sm font-bold font-mono text-emerald-400 mt-1">92% ⚡</p>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <span class="text-[11px] font-semibold text-slate-300">Run Benchmarks</span>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <button onclick="runBench('DuckDuckGo Search')" class="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-900 border border-slate-800 text-left text-slate-300">
+                  🌐 Web Search
+                </button>
+                <button onclick="runBench('Diagnostics')" class="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-900 border border-slate-800 text-left text-slate-300">
+                  📊 System Telemetry
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-400 overflow-y-auto" id="benchOutput">
+              // Telemetry bench ready. Click a tool above to run.
+            </div>
+          </div>
+
+          <!-- Tab: Settings -->
+          <div id="tabContent-settings" class="tab-view hidden flex-1 flex flex-col gap-3 overflow-y-auto text-xs">
+            <div class="flex flex-col gap-1.5">
+              <label class="font-semibold text-slate-300">Tamil Voice (edge-tts)</label>
+              <select class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800">
+                <option>ta-IN-PallaviNeural (Female)</option>
+                <option>ta-IN-ValluvarNeural (Male)</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="font-semibold text-slate-300">English Voice (NVIDIA Magpie)</label>
+              <select class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800">
+                <option>Magpie-Multilingual.EN-US.Aria</option>
+                <option>en-IN-NeerjaNeural</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between text-slate-300">
+                <span>Speech Speed Rate:</span>
+                <span id="rateLabel" class="font-mono text-blue-400">1.0x</span>
+              </div>
+              <input type="range" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('rateLabel').innerText=this.value+'x'" class="accent-blue-500">
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- BOTTOM DOCK -->
+    <footer class="hud-interactive glass-panel px-5 py-3 flex flex-wrap items-center justify-between gap-4 max-w-[1400px] w-full mx-auto">
+      <div class="flex items-center gap-2 overflow-x-auto text-xs">
+        <button onclick="insertPrompt('Check system diagnostics and battery')" class="px-3 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 transition-all whitespace-nowrap">
+          ⚡ Diagnostics
+        </button>
+        <button onclick="insertPrompt('Search latest AI news')" class="px-3 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 transition-all whitespace-nowrap">
+          🌐 Tech News
+        </button>
+        <button onclick="insertPrompt('இன்றைய வானிலை என்ன?')" class="px-3 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-purple-900/60 text-purple-300 transition-all whitespace-nowrap">
+          🗣️ தமிழ் செய்தி
+        </button>
+      </div>
+
+      <!-- Center Voice Spectrum Bars -->
+      <div class="flex items-center gap-1 h-5 px-3 rounded-full bg-slate-950/90 border border-slate-800">
+        <span class="w-1 h-2 bg-blue-500 rounded-full animate-bounce"></span>
+        <span class="w-1 h-4 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+        <span class="w-1 h-3 bg-purple-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+        <span class="w-1 h-5 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+        <span class="w-1 h-2 bg-sky-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+        <span>Active Brain:</span>
+        <span class="text-blue-400 font-semibold">Nemotron-3-Ultra</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ═══════════════════ ZERO-DEPENDENCY NATIVE WEBGL 3D ORB ENGINE ═══════════════════ -->
+  <script>
+    const canvas = document.getElementById('webglCanvas');
+    const gl = canvas.getContext('webgl', { antialias: true, alpha: true, preserveDrawingBuffer: true }) || canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
+    window.canvas = canvas;
+    window.gl = gl;
+
+    if (!gl) {
+      alert('WebGL is not supported in this browser.');
+    }
+
+    // Dynamic State Colors
+    const stateColors = {
+      standby: [0.227, 0.525, 1.0],   // #3a86ff Cyber Blue
+      listening: [0.0, 0.941, 1.0],   // #00f0ff Electric Cyan
+      thinking: [1.0, 0.0, 0.431],    // #ff006e Flame Neon Red (matches user screenshot!)
+      speaking: [0.514, 0.220, 0.925]  // #8338ec Void Purple
+    };
+
+    let curColor = [0.227, 0.525, 1.0];
+    let targetColor = [0.227, 0.525, 1.0];
+    let currentVoiceState = 'standby';
+    let speechAnimTimer = 0;
+    let scaleAnim = 1.0;
+    let isAlwaysListening = false;
+
+    // ═══════════════════ ADVANCED 3D MATRIX MATHEMATICS ═══════════════════
+    function createPerspectiveMatrix(fov, aspect, near, far) {
+      const f = Math.tan(Math.PI * 0.5 - 0.5 * fov);
+      const rangeInv = 1.0 / (near - far);
+      return [
+        f / aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (near + far) * rangeInv, -1,
+        0, 0, near * far * rangeInv * 2, 0
+      ];
+    }
+
+    function mat4Identity() {
+      return [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+      ];
+    }
+
+    function mat4Multiply(a, b) {
+      const out = new Float32Array(16);
+      for (let i = 0; i < 4; i++) {
+        const ai0 = a[i], ai1 = a[i + 4], ai2 = a[i + 8], ai3 = a[i + 12];
+        out[i]      = ai0 * b[0] + ai1 * b[1] + ai2 * b[2] + ai3 * b[3];
+        out[i + 4]  = ai0 * b[4] + ai1 * b[5] + ai2 * b[6] + ai3 * b[7];
+        out[i + 8]  = ai0 * b[8] + ai1 * b[9] + ai2 * b[10] + ai3 * b[11];
+        out[i + 12] = ai0 * b[12] + ai1 * b[13] + ai2 * b[14] + ai3 * b[15];
+      }
+      return out;
+    }
+
+    function mat4RotateX(m, rad) {
+      const c = Math.cos(rad), s = Math.sin(rad);
+      const r = [
+        1, 0, 0, 0,
+        0, c, s, 0,
+        0, -s, c, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, r);
+    }
+
+    function mat4RotateY(m, rad) {
+      const c = Math.cos(rad), s = Math.sin(rad);
+      const r = [
+        c, 0, -s, 0,
+        0, 1, 0, 0,
+        s, 0, c, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, r);
+    }
+
+    function mat4RotateZ(m, rad) {
+      const c = Math.cos(rad), s = Math.sin(rad);
+      const r = [
+        c, s, 0, 0,
+        -s, c, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, r);
+    }
+
+    function mat4Translate(m, x, y, z) {
+      const t = [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        x, y, z, 1
+      ];
+      return mat4Multiply(m, t);
+    }
+
+    function mat4Scale(m, sx, sy, sz) {
+      const s = [
+        sx, 0, 0, 0,
+        0, sy, 0, 0,
+        0, 0, sz, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, s);
+    }
+
+    // ═══════════════════ GLSL SHADER DEFINITIONS ═══════════════════
+
+    // 1. Organic Liquid Plasma Core Shaders
+    const plasmaVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      uniform float uTime;
+      uniform float uAudioReact;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying float vDisplacement;
+
+      void main() {
+        float wave1 = sin(aPosition.x * 2.2 + uTime * 2.8) * cos(aPosition.y * 2.4 + uTime * 2.5);
+        float wave2 = sin(aPosition.z * 3.0 + uTime * 3.2) * cos(aPosition.x * 2.0 - uTime * 2.2);
+        float wave3 = sin((aPosition.x + aPosition.y + aPosition.z) * 2.2 + uTime * 4.0);
+
+        float disp = (wave1 * 0.45 + wave2 * 0.35 + wave3 * 0.20) * (0.12 + uAudioReact * 0.50);
+        vDisplacement = disp;
+
+        vec3 displacedPos = aPosition + aNormal * disp;
+        vNormal = mat3(uModelView) * aNormal;
+        vec4 mvPos = uModelView * vec4(displacedPos, 1.0);
+        vPosition = mvPos.xyz;
+        gl_Position = uProjection * mvPos;
+      }
+    `;
+
+    const plasmaFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform float uTime;
+      uniform float uAudioReact;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying float vDisplacement;
+
+      void main() {
+        vec3 norm = normalize(vNormal);
+        vec3 viewDir = normalize(-vPosition);
+
+        float fresnel = pow(max(0.0, 1.0 - dot(norm, viewDir)), 2.6);
+
+        float vein = sin(vDisplacement * 18.0 + uTime * 4.5) * 0.5 + 0.5;
+        vec3 hotWhite = vec3(0.96, 0.98, 1.0);
+        vec3 plasmaEdge = mix(uColor, hotWhite, fresnel * 0.70 + vein * 0.30);
+        vec3 deepColor = mix(uColor * 0.35, uColor, 0.5 + 0.5 * sin(uTime * 2.0));
+        vec3 finalColor = mix(deepColor, plasmaEdge, fresnel);
+
+        float alpha = clamp(0.74 + fresnel * 0.26 + uAudioReact * 0.20, 0.0, 1.0);
+        gl_FragColor = vec4(finalColor * (1.15 + uAudioReact * 0.65), alpha);
+      }
+    `;
+
+    // 2. Holographic Matrix Wireframe Shader (ripples in sync with core)
+    const wireFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform float uTime;
+      uniform float uAudioReact;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying float vDisplacement;
+
+      void main() {
+        float shimmer = 0.75 + 0.45 * sin(vDisplacement * 22.0 + uTime * 5.0);
+        vec3 col = uColor * (1.25 + uAudioReact * 0.8) * shimmer;
+        gl_FragColor = vec4(col, 0.80);
+      }
+    `;
+
+    // 3. Gyroscopic Tech Rings Shader
+    const ringVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      void main() {
+        gl_Position = uProjection * uModelView * vec4(aPosition, 1.0);
+      }
+    `;
+
+    const ringFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform float uAlpha;
+      void main() {
+        gl_FragColor = vec4(uColor, uAlpha);
+      }
+    `;
+
+    // 4. Orbital Tech Satellite Nodes Shader
+    const nodeVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      uniform float uPointSize;
+      void main() {
+        vec4 pos = uProjection * uModelView * vec4(aPosition, 1.0);
+        gl_Position = pos;
+        gl_PointSize = clamp(uPointSize / max(0.1, pos.w), 1.0, 48.0);
+      }
+    `;
+
+    const nodeFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+        float alpha = clamp((0.5 - d) * 2.2, 0.0, 1.0);
+        gl_FragColor = vec4(uColor, alpha);
+      }
+    `;
+
+    // 5. Atmospheric Corona Glow Shader
+    const atmosphereVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      varying vec3 vNormal;
+      void main() {
+        vNormal = mat3(uModelView) * aNormal;
+        gl_Position = uProjection * uModelView * vec4(aPosition, 1.0);
+      }
+    `;
+
+    const atmosphereFS = `
+      precision mediump float;
+      uniform vec3 uGlowColor;
+      varying vec3 vNormal;
+      void main() {
+        vec3 norm = normalize(vNormal);
+        float intensity = pow(max(0.0, 0.74 - dot(norm, vec3(0.0, 0.0, 1.0))), 2.2);
+        gl_FragColor = vec4(uGlowColor * 1.35, intensity * 0.92);
+      }
+    `;
+
+    // 6. Deep Space Starfield Shaders
+    const starsVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      void main() {
+        vec4 pos = uProjection * uModelView * vec4(aPosition, 1.0);
+        gl_Position = pos;
+        gl_PointSize = clamp(480.0 / max(0.1, pos.w), 1.0, 8.0);
+      }
+    `;
+
+    const starsFS = `
+      precision mediump float;
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+        float alpha = clamp((0.5 - d) * 2.0, 0.0, 0.9);
+        gl_FragColor = vec4(0.92, 0.96, 1.0, alpha);
+      }
+    `;
+
+    function compileShader(type, src) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, src);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+      }
+      return shader;
+    }
+
+    function createProgram(vsSrc, fsSrc, hasNormal) {
+      const vs = compileShader(gl.VERTEX_SHADER, vsSrc);
+      const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc);
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+
+      // Lock attribute locations strictly for consistency across all programs
+      gl.bindAttribLocation(prog, 0, 'aPosition');
+      if (hasNormal) {
+        gl.bindAttribLocation(prog, 1, 'aNormal');
+      }
+
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        console.error(gl.getProgramInfoLog(prog));
+      }
+      return prog;
+    }
+
+    const plasmaProg = createProgram(plasmaVS, plasmaFS, true);
+    const wireProg = createProgram(plasmaVS, wireFS, true);
+    const ringProg = createProgram(ringVS, ringFS, false);
+    const nodeProg = createProgram(nodeVS, nodeFS, false);
+    const atmosphereProg = createProgram(atmosphereVS, atmosphereFS, true);
+    const starsProg = createProgram(starsVS, starsFS, false);
+
+    window.plasmaProg = plasmaProg;
+    window.wireProg = wireProg;
+    window.ringProg = ringProg;
+    window.nodeProg = nodeProg;
+    window.atmosphereProg = atmosphereProg;
+    window.starsProg = starsProg;
+
+    // ═══════════════════ GEOMETRY BUILDERS ═══════════════════
+
+    function buildSphere(radius, lats, lons) {
+      const positions = [];
+      const normals = [];
+      const lineIndices = [];
+      const triIndices = [];
+
+      for (let i = 0; i <= lats; i++) {
+        const theta = (i * Math.PI) / lats;
+        const sinTheta = Math.sin(theta);
+        const cosTheta = Math.cos(theta);
+
+        for (let j = 0; j <= lons; j++) {
+          const phi = (j * 2 * Math.PI) / lons;
+          const x = radius * sinTheta * Math.cos(phi);
+          const y = radius * cosTheta;
+          const z = radius * sinTheta * Math.sin(phi);
+
+          positions.push(x, y, z);
+          normals.push(x / radius, y / radius, z / radius);
+        }
+      }
+
+      for (let i = 0; i < lats; i++) {
+        for (let j = 0; j < lons; j++) {
+          const first = i * (lons + 1) + j;
+          const second = first + lons + 1;
+
+          lineIndices.push(first, first + 1);
+          lineIndices.push(first, second);
+
+          triIndices.push(first, second, first + 1);
+          triIndices.push(second, second + 1, first + 1);
+        }
+      }
+
+      return {
+        positions: new Float32Array(positions),
+        normals: new Float32Array(normals),
+        lineIndices: new Uint16Array(lineIndices),
+        triIndices: new Uint16Array(triIndices)
+      };
+    }
+
+    function buildTechRing(radius, segments, dashRatio) {
+      const positions = [];
+      for (let i = 0; i < segments; i++) {
+        if ((i % 8) < (8 * dashRatio)) {
+          const theta1 = (i / segments) * Math.PI * 2;
+          const theta2 = ((i + 1) / segments) * Math.PI * 2;
+          positions.push(
+            Math.cos(theta1) * radius, 0, Math.sin(theta1) * radius,
+            Math.cos(theta2) * radius, 0, Math.sin(theta2) * radius
+          );
+        }
+      }
+      return new Float32Array(positions);
+    }
+
+    function buildOrbitNodes(radius, count) {
+      const positions = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const theta = (i / count) * Math.PI * 2;
+        positions[i * 3 + 0] = Math.cos(theta) * radius;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = Math.sin(theta) * radius;
+      }
+      return positions;
+    }
+
+    // Build geometries
+    const plasmaSphere = buildSphere(4.75, 42, 42);
+    const atmosphereSphere = buildSphere(5.35, 36, 36);
+
+    const ring1Verts = buildTechRing(5.6, 128, 0.75);
+    const ring2Verts = buildTechRing(6.4, 144, 0.60);
+    const ring3Verts = buildTechRing(7.2, 160, 0.50);
+
+    const nodes1Verts = buildOrbitNodes(5.6, 4);
+    const nodes2Verts = buildOrbitNodes(6.4, 6);
+    const nodes3Verts = buildOrbitNodes(7.2, 8);
+
+    // Dynamic Equatorial Waveform Equalizer
+    const waveCount = 96;
+    const wavePositions = new Float32Array(waveCount * 2 * 3);
+
+    // Buffers for Plasma Sphere
+    const plasmaPosBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, plasmaPosBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, plasmaSphere.positions, gl.STATIC_DRAW);
+
+    const plasmaNormBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, plasmaNormBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, plasmaSphere.normals, gl.STATIC_DRAW);
+
+    const plasmaIdxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, plasmaIdxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, plasmaSphere.triIndices, gl.STATIC_DRAW);
+
+    const wireIdxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIdxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, plasmaSphere.lineIndices, gl.STATIC_DRAW);
+
+    // Buffers for Atmosphere
+    const atPosBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, atPosBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, atmosphereSphere.positions, gl.STATIC_DRAW);
+
+    const atNormBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, atNormBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, atmosphereSphere.normals, gl.STATIC_DRAW);
+
+    const atIdxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, atIdxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, atmosphereSphere.triIndices, gl.STATIC_DRAW);
+
+    // Buffers for Tech Rings
+    const ring1Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ring1Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, ring1Verts, gl.STATIC_DRAW);
+
+    const ring2Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ring2Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, ring2Verts, gl.STATIC_DRAW);
+
+    const ring3Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ring3Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, ring3Verts, gl.STATIC_DRAW);
+
+    // Buffers for Orbiting Nodes
+    const nodes1Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodes1Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, nodes1Verts, gl.STATIC_DRAW);
+
+    const nodes2Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodes2Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, nodes2Verts, gl.STATIC_DRAW);
+
+    const nodes3Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodes3Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, nodes3Verts, gl.STATIC_DRAW);
+
+    // Buffer for Audio Waveform
+    const waveBuf = gl.createBuffer();
+
+    // Starfield Points (8,000 stars)
+    const starCount = 8000;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPositions[i * 3 + 0] = (Math.random() - 0.5) * 800;
+      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 800;
+      starPositions[i * 3 + 2] = (Math.random() - 0.5) * 800;
+    }
+    const starPosBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, starPositions, gl.STATIC_DRAW);
+
+    // Interactive Drag Rotation
+    let rotX = 0;
+    let rotY = 0;
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    window.addEventListener('mousedown', (e) => {
+      if (!e.target.closest('.hud-interactive')) {
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      rotY += dx * 0.005;
+      rotX += dy * 0.005;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1 && !e.target.closest('.hud-interactive')) {
+        isDragging = true;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+      }
+    });
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - lastMouseX;
+      const dy = e.touches[0].clientY - lastMouseY;
+      rotY += dx * 0.005;
+      rotX += dy * 0.005;
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    });
+    window.addEventListener('touchend', () => { isDragging = false; });
+
+    // ═══════════════════ RENDER LOOP ═══════════════════
+    let pulseTime = 0;
+    let ringAngle1 = 0;
+    let ringAngle2 = 0;
+    let ringAngle3 = 0;
+
+    function render() {
+      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+
+      // Smooth color transition
+      for (let i = 0; i < 3; i++) {
+        curColor[i] += (targetColor[i] - curColor[i]) * 0.05;
+      }
+
+      gl.clearColor(0.012, 0.016, 0.028, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // Additive luminous glow blending
+
+      const aspect = canvas.width / canvas.height;
+      const proj = createPerspectiveMatrix((60 * Math.PI) / 180, aspect, 0.1, 1500);
+
+      pulseTime += 0.025;
+      let audioReact = 0.05;
+
+      // ═══════════════════ DYNAMIC VOICE STATE ANIMATION ═══════════════════
+      if (currentVoiceState === 'speaking') {
+        speechAnimTimer += 0.085;
+        audioReact = 0.75 + Math.sin(speechAnimTimer * 5.0) * 0.25;
+        scaleAnim = 1.0 + Math.sin(speechAnimTimer * 3.5) * 0.06;
+        rotY += 0.008;
+        rotX += Math.sin(speechAnimTimer * 2.0) * 0.002;
+        ringAngle1 += 0.025;
+        ringAngle2 -= 0.030;
+        ringAngle3 += 0.018;
+      } else if (currentVoiceState === 'listening') {
+        speechAnimTimer += 0.04;
+        audioReact = 0.25 + Math.sin(speechAnimTimer * 3.0) * 0.12;
+        scaleAnim = 1.0 + Math.sin(speechAnimTimer * 2.2) * 0.04;
+        rotY += 0.004;
+        ringAngle1 += 0.012;
+        ringAngle2 -= 0.015;
+        ringAngle3 += 0.008;
+      } else if (currentVoiceState === 'thinking') {
+        speechAnimTimer += 0.07;
+        audioReact = 0.40 + Math.sin(speechAnimTimer * 6.0) * 0.20;
+        scaleAnim = 1.0 + Math.sin(speechAnimTimer * 4.5) * 0.05;
+        rotY += 0.018;
+        ringAngle1 += 0.055;
+        ringAngle2 -= 0.065;
+        ringAngle3 += 0.045;
+      } else {
+        speechAnimTimer += 0.012;
+        audioReact = 0.06 + Math.sin(pulseTime * 1.5) * 0.03;
+        scaleAnim += (1.0 - scaleAnim) * 0.08;
+        rotY += 0.0025;
+        ringAngle1 += 0.007;
+        ringAngle2 -= 0.009;
+        ringAngle3 += 0.005;
+      }
+
+      // Base Scene ModelView Matrix
+      let baseMV = mat4Identity();
+      baseMV = mat4Translate(baseMV, 0, 0, -11.5);
+      baseMV = mat4RotateX(baseMV, rotX);
+      baseMV = mat4RotateY(baseMV, rotY);
+      baseMV = mat4Scale(baseMV, scaleAnim, scaleAnim, scaleAnim);
+
+      // 1. Draw Starfield
+      gl.useProgram(starsProg);
+      gl.enableVertexAttribArray(0);
+      gl.disableVertexAttribArray(1);
+      gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+      let starMV = mat4Identity();
+      starMV = mat4Translate(starMV, 0, 0, -11.5);
+      starMV = mat4RotateY(starMV, rotY * 0.15);
+      gl.uniformMatrix4fv(gl.getUniformLocation(starsProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(starsProg, 'uModelView'), false, starMV);
+      gl.drawArrays(gl.POINTS, 0, starCount);
+
+      // 2. Draw Liquid Plasma Solid Core
+      gl.useProgram(plasmaProg);
+      gl.enableVertexAttribArray(0);
+      gl.enableVertexAttribArray(1);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, plasmaPosBuf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, plasmaNormBuf);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, plasmaIdxBuf);
+
+      gl.uniformMatrix4fv(gl.getUniformLocation(plasmaProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(plasmaProg, 'uModelView'), false, baseMV);
+      gl.uniform1f(gl.getUniformLocation(plasmaProg, 'uTime'), pulseTime);
+      gl.uniform1f(gl.getUniformLocation(plasmaProg, 'uAudioReact'), audioReact);
+      gl.uniform3f(gl.getUniformLocation(plasmaProg, 'uColor'), curColor[0], curColor[1], curColor[2]);
+      gl.drawElements(gl.TRIANGLES, plasmaSphere.triIndices.length, gl.UNSIGNED_SHORT, 0);
+
+      // 3. Draw Holographic Matrix Wireframe Grid
+      gl.useProgram(wireProg);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIdxBuf);
+
+      gl.uniformMatrix4fv(gl.getUniformLocation(wireProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(wireProg, 'uModelView'), false, baseMV);
+      gl.uniform1f(gl.getUniformLocation(wireProg, 'uTime'), pulseTime);
+      gl.uniform1f(gl.getUniformLocation(wireProg, 'uAudioReact'), audioReact);
+      gl.uniform3f(gl.getUniformLocation(wireProg, 'uColor'), curColor[0] * 1.25, curColor[1] * 1.25, curColor[2] * 1.25);
+      gl.drawElements(gl.LINES, plasmaSphere.lineIndices.length, gl.UNSIGNED_SHORT, 0);
+
+      // Disable normal attribute for non-normal shaders
+      gl.disableVertexAttribArray(1);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+      // 4. Draw Gyroscopic Tech Rings & Orbiting Nodes
+      // --- Ring 1: Inner Gimbal (Tilted 22°) ---
+      let ring1MV = mat4Identity();
+      ring1MV = mat4Translate(ring1MV, 0, 0, -11.5);
+      ring1MV = mat4RotateX(ring1MV, rotX + 0.38);
+      ring1MV = mat4RotateY(ring1MV, rotY + ringAngle1);
+      ring1MV = mat4Scale(ring1MV, scaleAnim, scaleAnim, scaleAnim);
+
+      gl.useProgram(ringProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ring1Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, ring1MV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.35, curColor[1] * 1.35, curColor[2] * 1.35);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.85);
+      gl.drawArrays(gl.LINES, 0, ring1Verts.length / 3);
+
+      gl.useProgram(nodeProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, nodes1Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uModelView'), false, ring1MV);
+      gl.uniform1f(gl.getUniformLocation(nodeProg, 'uPointSize'), 180.0);
+      gl.uniform3f(gl.getUniformLocation(nodeProg, 'uColor'), 1.0, 1.0, 1.0);
+      gl.drawArrays(gl.POINTS, 0, 4);
+
+      // --- Ring 2: Middle Gyro (Tilted 68°) ---
+      let ring2MV = mat4Identity();
+      ring2MV = mat4Translate(ring2MV, 0, 0, -11.5);
+      ring2MV = mat4RotateZ(ring2MV, 1.18);
+      ring2MV = mat4RotateX(ring2MV, rotX + 0.25);
+      ring2MV = mat4RotateY(ring2MV, rotY + ringAngle2);
+      ring2MV = mat4Scale(ring2MV, scaleAnim, scaleAnim, scaleAnim);
+
+      gl.useProgram(ringProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ring2Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, ring2MV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.5, curColor[1] * 1.5, curColor[2] * 1.5);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.90);
+      gl.drawArrays(gl.LINES, 0, ring2Verts.length / 3);
+
+      gl.useProgram(nodeProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, nodes2Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uModelView'), false, ring2MV);
+      gl.uniform1f(gl.getUniformLocation(nodeProg, 'uPointSize'), 220.0);
+      gl.uniform3f(gl.getUniformLocation(nodeProg, 'uColor'), curColor[0] * 1.8, curColor[1] * 1.8, curColor[2] * 1.8);
+      gl.drawArrays(gl.POINTS, 0, 6);
+
+      // --- Ring 3: Outer Data Horizon (Tilted -35°) ---
+      let ring3MV = mat4Identity();
+      ring3MV = mat4Translate(ring3MV, 0, 0, -11.5);
+      ring3MV = mat4RotateX(ring3MV, rotX - 0.62);
+      ring3MV = mat4RotateY(ring3MV, rotY + ringAngle3);
+      ring3MV = mat4Scale(ring3MV, scaleAnim, scaleAnim, scaleAnim);
+
+      gl.useProgram(ringProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ring3Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, ring3MV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.1, curColor[1] * 1.1, curColor[2] * 1.1);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.70);
+      gl.drawArrays(gl.LINES, 0, ring3Verts.length / 3);
+
+      gl.useProgram(nodeProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, nodes3Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uModelView'), false, ring3MV);
+      gl.uniform1f(gl.getUniformLocation(nodeProg, 'uPointSize'), 160.0);
+      gl.uniform3f(gl.getUniformLocation(nodeProg, 'uColor'), 1.0, 1.0, 1.0);
+      gl.drawArrays(gl.POINTS, 0, 8);
+
+      // 5. Draw Dynamic Equatorial Audio Waveform Equalizer
+      for (let i = 0; i < waveCount; i++) {
+        const theta = (i / waveCount) * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
+        const freq1 = Math.sin(theta * 6.0 + speechAnimTimer * 7.0);
+        const freq2 = Math.cos(theta * 12.0 - speechAnimTimer * 5.0);
+        const h = (freq1 * 0.6 + freq2 * 0.4) * (0.08 + audioReact * 0.70);
+        const r1 = 5.05;
+        const r2 = 5.05 + Math.abs(h);
+
+        wavePositions[i * 6 + 0] = cosT * r1;
+        wavePositions[i * 6 + 1] = -0.05;
+        wavePositions[i * 6 + 2] = sinT * r1;
+
+        wavePositions[i * 6 + 3] = cosT * r2;
+        wavePositions[i * 6 + 4] = h * 1.5;
+        wavePositions[i * 6 + 5] = sinT * r2;
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, waveBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, wavePositions, gl.DYNAMIC_DRAW);
+
+      gl.useProgram(ringProg);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, baseMV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.6, curColor[1] * 1.6, curColor[2] * 1.6);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.95);
+      gl.drawArrays(gl.LINES, 0, waveCount * 2);
+
+      // 6. Draw Atmospheric Glow Corona Outer Sphere
+      gl.useProgram(atmosphereProg);
+      gl.enableVertexAttribArray(0);
+      gl.enableVertexAttribArray(1);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, atPosBuf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, atNormBuf);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, atIdxBuf);
+
+      gl.uniformMatrix4fv(gl.getUniformLocation(atmosphereProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(atmosphereProg, 'uModelView'), false, baseMV);
+      const glowBoost = 1.1 + audioReact * 0.6;
+      gl.uniform3f(gl.getUniformLocation(atmosphereProg, 'uGlowColor'), curColor[0] * glowBoost, curColor[1] * glowBoost, curColor[2] * glowBoost);
+      gl.drawElements(gl.TRIANGLES, atmosphereSphere.triIndices.length, gl.UNSIGNED_SHORT, 0);
+
+      window.__lastGLError = gl.getError();
+      requestAnimationFrame(render);
+    }
+
+    render();
+
+    // ═══════════════════ LIVE PYWEBVIEW API BRIDGE & STATE ═══════════════════
+
+    const hasBridge = () => typeof window.pywebview !== 'undefined' && window.pywebview.api;
+
+    window.setVoiceState = setVoiceState;
+
+    function setVoiceState(state) {
+      currentVoiceState = state;
+      targetColor = stateColors[state] || stateColors.standby;
+      const statusLabel = document.getElementById('statusLabel');
+      const pulseDot = document.getElementById('statusDot');
+
+      // Update button active styles
+      ['standby', 'listening', 'thinking', 'speaking'].forEach(s => {
+        const btn = document.getElementById(`btn-${s}`);
+        if (btn) {
+          if (s === state) {
+            btn.className = 'px-2.5 py-1 rounded-lg text-white bg-blue-600/30 border border-blue-500/40 transition-all font-semibold';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all';
+          }
+        }
+      });
+
+      if (state === 'standby') {
+        statusLabel.innerText = isAlwaysListening ? '🟢 ALWAYS LISTENING ACTIVE' : 'STANDBY: "HEY IGRIS"';
+        pulseDot.className = isAlwaysListening ? 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping' : 'w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse';
+      } else if (state === 'listening') {
+        statusLabel.innerText = '🎤 LISTENING (Recognizing voice)...';
+        pulseDot.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping';
+      } else if (state === 'thinking') {
+        statusLabel.innerText = '🧠 REASONING (LLM & Tools)...';
+        pulseDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-spin';
+      } else if (state === 'speaking') {
+        statusLabel.innerText = '🔊 SPEAKING (Neural Voice TTS)...';
+        pulseDot.className = 'w-2.5 h-2.5 rounded-full bg-purple-500 animate-bounce';
+      }
+    }
+
+    // ═══════════════════ ALWAYS LISTENING CONTROLLER ═══════════════════
+
+    async function toggleAlwaysListening() {
+      isAlwaysListening = !isAlwaysListening;
+      updateAlwaysListeningUI();
+
+      if (isAlwaysListening) {
+        runAlwaysListeningLoop();
+      } else {
+        setVoiceState('standby');
+      }
+    }
+
+    function updateAlwaysListeningUI() {
+      const btn = document.getElementById('alwaysListeningBtn');
+      const dot = document.getElementById('alwaysListeningDot');
+      const txt = document.getElementById('alwaysListeningText');
+      const centerBtn = document.getElementById('centerAlwaysListeningBtn');
+      const centerDot = document.getElementById('centerAlwaysDot');
+      const centerTxt = document.getElementById('centerAlwaysText');
+      const inputBtn = document.getElementById('inputAlwaysListeningBtn');
+
+      if (isAlwaysListening) {
+        if (btn) btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold transition-all border flex items-center gap-2 bg-emerald-950/90 border-emerald-500/60 text-emerald-300 shadow-lg shadow-emerald-500/20';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+        if (txt) txt.innerText = 'Always Listening: ON';
+
+        if (centerBtn) centerBtn.className = 'hud-interactive px-4 py-2 rounded-full bg-emerald-950/90 border border-emerald-400/80 text-xs font-mono text-emerald-300 backdrop-blur-md transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2';
+        if (centerDot) centerDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+        if (centerTxt) centerTxt.innerText = '🟢 Hands-Free ACTIVE';
+
+        if (inputBtn) inputBtn.className = 'p-2.5 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-400 shadow-lg shadow-emerald-500/20 transition-all';
+      } else {
+        if (btn) btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold transition-all border flex items-center gap-2 bg-slate-950/90 border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/40';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-600';
+        if (txt) txt.innerText = 'Always Listening: OFF';
+
+        if (centerBtn) centerBtn.className = 'hud-interactive px-4 py-2 rounded-full bg-slate-950/70 border border-slate-700/60 text-xs font-mono text-slate-300 hover:text-emerald-300 hover:border-emerald-500/50 backdrop-blur-md transition-all shadow-xl hover:scale-105 flex items-center gap-2';
+        if (centerDot) centerDot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        if (centerTxt) centerTxt.innerText = '⚡ Continuous Voice';
+
+        if (inputBtn) inputBtn.className = 'p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-emerald-400 transition-all';
+      }
+    }
+
+    function isStopListeningQuery(text) {
+      const t = (text || '').toLowerCase().trim();
+      return /\b(stop\s+(listen|listening|voice|always\s+listening|mic)|turn\s+off\s+(listening|voice)|disable\s+(listening|voice)|mute\s+mic)\b/.test(t) || t === 'stop listen' || t === 'stop listening' || t === 'stop voice';
+    }
+
+    async function runAlwaysListeningLoop() {
+      while (isAlwaysListening) {
+        try {
+          setVoiceState('listening');
+          if (hasBridge()) {
+            const result = await window.pywebview.api.trigger_voice();
+            if (!isAlwaysListening) break;
+
+            if (result && result.status === 'success' && result.user_input) {
+              appendUserBubble(result.user_input, result.user_name || 'Joshua');
+              if (result.tool_logs && result.tool_logs.length > 0) {
+                result.tool_logs.forEach(tl => appendToolBadge(tl));
+              }
+              appendAiBubble(result.response);
+
+              // Immediately halt listening loop if user requested to stop listening
+              if (result.stop_listening || isStopListeningQuery(result.user_input)) {
+                isAlwaysListening = false;
+                updateAlwaysListeningUI();
+                setVoiceState('standby');
+                break;
+              }
+
+              // Maintain animated speaking state while TTS plays
+              await new Promise(r => setTimeout(r, 400));
+              while (isAlwaysListening && await window.pywebview.api.is_speaking()) {
+                await new Promise(r => setTimeout(r, 120));
+              }
+              // Prevent mic from catching room speaker echo
+              await new Promise(r => setTimeout(r, 600));
+            } else {
+              // Silence or timeout: brief wait and continue listening
+              await new Promise(r => setTimeout(r, 250));
+            }
+          } else {
+            // Standalone browser preview
+            await new Promise(r => setTimeout(r, 2500));
+            if (!isAlwaysListening) break;
+            setVoiceState('speaking');
+            await new Promise(r => setTimeout(r, 2500));
+            setVoiceState('standby');
+            await new Promise(r => setTimeout(r, 800));
+          }
+        } catch (err) {
+          console.error('Always listening loop error:', err);
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      setVoiceState('standby');
+    }
+
+    // ═══════════════════ SINGLE TURN VOICE CYCLE ═══════════════════
+
+    async function triggerVoiceCycle() {
+      setVoiceState('listening');
+      if (hasBridge()) {
+        try {
+          const result = await window.pywebview.api.trigger_voice();
+          if (result && result.status === 'success' && result.user_input) {
+            appendUserBubble(result.user_input, result.user_name || 'Joshua');
+            if (result.tool_logs && result.tool_logs.length > 0) {
+              result.tool_logs.forEach(tl => appendToolBadge(tl));
+            }
+            appendAiBubble(result.response);
+
+            // Turn off always listening if active and requested to stop
+            if (result.stop_listening || isStopListeningQuery(result.user_input)) {
+              isAlwaysListening = false;
+              updateAlwaysListeningUI();
+            }
+
+            // Keep animated speaking state while voice audio is playing
+            await new Promise(r => setTimeout(r, 400));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 120));
+            }
+            setVoiceState('standby');
+          } else {
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          console.error(e);
+          setVoiceState('standby');
+        }
+      } else {
+        // Fallback simulation for browser test
+        setTimeout(() => {
+          setVoiceState('thinking');
+          setTimeout(() => {
+            setVoiceState('speaking');
+            setTimeout(() => setVoiceState('standby'), 3000);
+          }, 1500);
+        }, 1500);
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
+      document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+
+      const activeBtn = document.getElementById(`tabBtn-${tabId}`);
+      const activeView = document.getElementById(`tabContent-${tabId}`);
+      if (activeBtn) activeBtn.classList.add('tab-active');
+      if (activeView) activeView.classList.remove('hidden');
+
+      if (tabId === 'diagnostics') refreshTelemetry();
+      if (tabId === 'memory') loadFacts();
+    }
+
+    async function sendStreamMessage() {
+      const input = document.getElementById('streamInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      appendUserBubble(text, 'Joshua');
+      setVoiceState('thinking');
+
+      if (hasBridge()) {
+        try {
+          const result = await window.pywebview.api.send_message(text);
+          if (result && result.status === 'success') {
+            if (result.tool_logs && result.tool_logs.length > 0) {
+              result.tool_logs.forEach(tl => appendToolBadge(tl));
+            }
+            appendAiBubble(result.response);
+
+            // Turn off always listening if active and requested to stop
+            if (result.stop_listening || isStopListeningQuery(text)) {
+              isAlwaysListening = false;
+              updateAlwaysListeningUI();
+            }
+
+            // Keep animated speaking state while voice audio is playing
+            await new Promise(r => setTimeout(r, 400));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 120));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble("No response generated.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          appendAiBubble("Error connecting to IGIRS AI backend: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        // Standalone preview fallback
+        setTimeout(() => {
+          setVoiceState('speaking');
+          appendAiBubble(`I have received your command: "${text}". WebGL & NVIDIA NIM ready.`);
+          setTimeout(() => setVoiceState('standby'), 3000);
+        }, 1200);
+      }
+    }
+
+    function appendUserBubble(text, user) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const userBubble = document.createElement('div');
+      userBubble.className = 'flex flex-col items-end gap-1';
+      userBubble.innerHTML = `
+        <span class="text-[10px] font-mono text-slate-400 pr-1">${escapeHtml(user)} • ${time}</span>
+        <div class="max-w-[85%] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-xs leading-relaxed shadow-lg">
+          ${escapeHtml(text)}
+        </div>
+      `;
+      stream.appendChild(userBubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function appendToolBadge(toolLog) {
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-slate-950/90 border border-amber-500/30 rounded-xl p-3 flex flex-col gap-1.5 shadow-lg';
+      if (toolLog.type === 'call') {
+        badge.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <span class="flex items-center gap-1.5 text-amber-400 font-mono font-medium text-[11px]">
+              <span>⚙️</span> Tool Invocation: ${escapeHtml(toolLog.name)}()
+            </span>
+            <span class="px-2 py-0.5 text-[9px] font-mono rounded bg-amber-950/80 text-amber-300 border border-amber-800/80">
+              EXECUTING
+            </span>
+          </div>
+          <div class="text-[10px] font-mono text-slate-300 bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 truncate">
+            ${escapeHtml(JSON.stringify(toolLog.args))}
+          </div>
+        `;
+      } else {
+        badge.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <span class="flex items-center gap-1.5 text-emerald-400 font-mono font-medium text-[11px]">
+              <span>✔</span> Tool Result: ${escapeHtml(toolLog.name)}
+            </span>
+            <span class="px-2 py-0.5 text-[9px] font-mono rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+              200 OK
+            </span>
+          </div>
+          <div class="text-[10px] font-mono text-slate-300 bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
+            ${escapeHtml(toolLog.result.length > 180 ? toolLog.result.substring(0, 180) + '...' : toolLog.result)}
+          </div>
+        `;
+      }
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function appendAiBubble(response) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Clean display if raw tool call JSON is passed
+      let displayText = response;
+      if (typeof displayText === 'string' && displayText.trim().startsWith('{') && displayText.trim().endsWith('}')) {
+        try {
+          const parsed = JSON.parse(displayText.trim());
+          const fn = parsed.name || parsed.function || parsed.action;
+          if (fn === 'stop_listening' || fn === 'stop_listen' || fn === 'stop_voice' || fn === 'mute') {
+            displayText = "I've stopped listening, Joshua. Click the mic whenever you need me!";
+          } else if (fn) {
+            displayText = `Executing ${fn}...`;
+          }
+        } catch (e) {}
+      }
+
+      const aiBubble = document.createElement('div');
+      aiBubble.className = 'flex flex-col items-start gap-1';
+      aiBubble.innerHTML = `
+        <span class="text-[10px] font-mono text-blue-400 pl-1">IGIRS AI • ${time}</span>
+        <div class="max-w-[90%] bg-slate-900/90 border border-slate-800 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-xl flex flex-col gap-2">
+          <p class="leading-relaxed">${escapeHtml(displayText)}</p>
+          <div class="flex items-center gap-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
+              <span>🔊</span> Re-speak
+            </button>
+            <span class="ml-auto font-mono text-slate-500">Llama-3.2-11B NIM</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(aiBubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function respeakMessage(btn) {
+      const text = btn.closest('.glass-panel, div').querySelector('p').innerText;
+      if (hasBridge()) {
+        window.pywebview.api.send_message(text);
+      } else {
+        setVoiceState('speaking');
+        setTimeout(() => setVoiceState('standby'), 2500);
+      }
+    }
+
+    function insertPrompt(p) {
+      document.getElementById('streamInput').value = p;
+      sendStreamMessage();
+    }
+
+    async function loadFacts() {
+      if (!hasBridge()) return;
+      try {
+        const facts = await window.pywebview.api.get_facts();
+        const list = document.getElementById('factsList');
+        list.innerHTML = '';
+        facts.forEach((f, idx) => {
+          const item = document.createElement('div');
+          item.className = 'p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group';
+          item.innerHTML = `
+            <span class="text-slate-300">• ${escapeHtml(f)}</span>
+            <button onclick="deleteFact('${escapeHtml(f)}', this)" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+          `;
+          list.appendChild(item);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function addFact() {
+      const input = document.getElementById('newFactInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      if (hasBridge()) {
+        await window.pywebview.api.add_fact(text);
+        loadFacts();
+      } else {
+        const list = document.getElementById('factsList');
+        const item = document.createElement('div');
+        item.className = 'p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group';
+        item.innerHTML = `
+          <span class="text-slate-300">• ${escapeHtml(text)}</span>
+          <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+        `;
+        list.appendChild(item);
+      }
+    }
+
+    async function deleteFact(factText, btn) {
+      if (hasBridge()) {
+        await window.pywebview.api.remove_fact(factText);
+      }
+      btn.parentElement.remove();
+    }
+
+    async function refreshTelemetry() {
+      if (!hasBridge()) return;
+      try {
+        const t = await window.pywebview.api.get_telemetry();
+        const out = document.getElementById('benchOutput');
+        out.innerHTML = `<span class="text-emerald-400 font-bold">✓ Live System Telemetry</span>\n` +
+          `• OS: ${t.os} | Host: ${t.hostname}\n` +
+          `• CPU: ${t.cpu_usage_percent}\n` +
+          `• RAM: ${t.ram_usage_percent}\n` +
+          `• Battery: ${t.battery_percent} (${t.battery_power_plugged})`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function toggleHud() {
+      const p = document.getElementById('hudPanels');
+      const txt = document.getElementById('toggleText');
+      if (p.classList.contains('opacity-0')) {
+        p.classList.remove('opacity-0', 'pointer-events-none');
+        txt.innerText = 'Hide Panels';
+      } else {
+        p.classList.add('opacity-0', 'pointer-events-none');
+        txt.innerText = 'Show Panels';
+      }
+    }
+
+    function clearChat() {
+      if (hasBridge()) {
+        window.pywebview.api.clear_history();
+      }
+      document.getElementById('chatStream').innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60 text-xs text-slate-400 flex items-start gap-2.5">
+          <span class="text-blue-400 font-mono text-sm">⚡</span>
+          <div>
+            <p class="font-semibold text-slate-200">Chat Log Cleared</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">IGIRS AI is ready for new instructions.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Live Clock & Periodic Telemetry
+    setInterval(() => {
+      document.getElementById('liveClock').innerText = new Date().toLocaleTimeString('en-US', { hour12: true });
+    }, 1000);
+
+    // Initial load when bridge is ready
+    window.addEventListener('pywebviewready', () => {
+      loadFacts();
+      refreshTelemetry();
+    });
+  </script>
+
+</body>
+</html>
