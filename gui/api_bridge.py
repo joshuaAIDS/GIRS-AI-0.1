@@ -671,3 +671,55 @@ class DesktopApiBridge:
         except Exception as e:
             logger.error(f"Bridge save_email_config error: {e}")
             return {"status": "error", "message": str(e)}
+
+    # --- Phase 8: Web Automation & Live Price Checks ---
+
+    def check_prices(self, query: str, sites: Optional[List[str]] = None, speak: bool = True) -> Dict[str, Any]:
+        """Compares product prices across e-commerce platforms."""
+        self.notify_state("thinking")
+        try:
+            res = self._assistant.tools.web.check_product_prices(product_name=query, sites=sites)
+            if res.get("status") == "success" and speak and self._assistant.tts.enabled:
+                self._assistant.tts.speak(res.get("summary", f"Finished price check for {query}."))
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+            return res
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge check_prices error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def scrape_url(self, url: str, mode: str = "content", speak: bool = True) -> Dict[str, Any]:
+        """Scrapes text, markdown, or tables from a live URL."""
+        self.notify_state("thinking")
+        try:
+            res = self._assistant.tools.web.scrape_webpage(url=url, mode=mode)
+            if res.get("status") == "success" and speak and self._assistant.tts.enabled:
+                self._assistant.tts.speak(res.get("summary", f"Extracted content from {url}."))
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+            return res
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge scrape_url error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def capture_web_screenshot(self, url: str, full_page: bool = False) -> Dict[str, Any]:
+        """Captures a screenshot of a live webpage."""
+        self.notify_state("thinking")
+        try:
+            res = self._assistant.tools.web.capture_webpage_screenshot(url=url, full_page=full_page)
+            if res.get("status") == "success" and res.get("screenshot_path"):
+                p = Path(res["screenshot_path"])
+                if p.exists():
+                    import base64
+                    with open(p, "rb") as f:
+                        res["preview_base64"] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+            self.notify_state("standby")
+            return res
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge capture_web_screenshot error: {e}")
+            return {"status": "error", "message": str(e)}

@@ -210,6 +210,25 @@ class IGIRSAssistant:
         if any(w in text for w in ["contact", "contacts", "address book", "phone number", "phone no"]) and any(w in text for w in ["add", "save", "list", "show", "get", "find", "who", "delete", "remove", "what is"]):
             selected_tool_names.add("manage_contacts")
 
+        # --- Phase 8: Web Automation, Live Price Intelligence & Scraping Triggers ---
+
+        # 19. Price Checks & Comparison
+        if (any(w in text for w in ["price", "cost", "how much is", "how much does", "rate of", "best deal on", "cheapest"]) or 
+            (any(w in text for w in ["amazon", "flipkart"]) and any(w in text for w in ["check", "find", "search", "show", "get", "price", "buy"]))):
+            selected_tool_names.add("check_product_prices")
+
+        # 20. Web Scraping & Reading
+        if any(w in text for w in ["scrape", "extract from url", "read webpage", "read website", "read link", "summarize article", "webpage content"]) or (
+            re.search(r"https?://", text) and any(w in text for w in ["read", "scrape", "extract", "what is on", "summarize", "view"])
+        ):
+            selected_tool_names.add("scrape_webpage")
+
+        # 21. Webpage Screenshot
+        if any(w in text for w in ["screenshot of website", "webpage screenshot", "screenshot of url", "capture website", "capture webpage"]) or (
+            "screenshot" in text and re.search(r"https?://|\.com|\.org|\.net|\.io|\.edu", text)
+        ):
+            selected_tool_names.add("capture_webpage_screenshot")
+
         if not selected_tool_names:
             return None
 
@@ -302,7 +321,8 @@ class IGIRSAssistant:
             # If single-turn complete tools were called, output is already formatted
             single_turn_tools = [
                 "analyze_screen", "query_documents", "summarize_document",
-                "send_whatsapp", "send_email", "draft_email", "check_unread_emails", "manage_contacts"
+                "send_whatsapp", "send_email", "draft_email", "check_unread_emails", "manage_contacts",
+                "check_product_prices", "scrape_webpage", "capture_webpage_screenshot"
             ]
             if len(tool_calls) == 1 and tool_calls[0].get("function", {}).get("name") in single_turn_tools:
                 final_content = tool_output

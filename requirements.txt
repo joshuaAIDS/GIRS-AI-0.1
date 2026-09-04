@@ -8,3 +8,4 @@ pyttsx3>=2.90
 pycaw>=20240210
 screen-brightness-control>=0.23.0
 pyautogui>=0.9.54
+playwright>=1.40.0

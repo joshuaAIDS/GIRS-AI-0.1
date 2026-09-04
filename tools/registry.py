@@ -24,9 +24,18 @@ class ToolRegistry:
         self.contacts_mgr = None
         self.wa_engine = None
         self.mail_engine = None
+        self._web_automator = None
         self.tools: Dict[str, Dict[str, Any]] = {}
         self.handlers: Dict[str, Callable] = {}
         self._register_default_tools()
+
+    @property
+    def web(self):
+        """Lazy-loaded WebAutomator instance."""
+        if self._web_automator is None:
+            from tools.web_automator import WebAutomator
+            self._web_automator = WebAutomator()
+        return self._web_automator
 
     @property
     def documents(self):
@@ -692,6 +701,79 @@ class ToolRegistry:
             handler=self._tool_manage_contacts
         )
 
+        # 34. Web: Live Price Comparison & Tracking
+        self.register(
+            name="check_product_prices",
+            description="Search live product prices across e-commerce sites (Amazon, Flipkart) to find the best deal, discount, and price comparison.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "product_name": {
+                        "type": "string",
+                        "description": "Name or model of the product to search (e.g. 'iPhone 15 128GB', 'Sony WH-1000XM5', 'MacBook Air M2')."
+                    },
+                    "sites": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of e-commerce sites to search, e.g. ['amazon', 'flipkart']."
+                    },
+                    "max_results_per_site": {
+                        "type": "integer",
+                        "description": "Max listings to fetch per store (default: 3)."
+                    }
+                },
+                "required": ["product_name"]
+            },
+            handler=self._tool_check_product_prices
+        )
+
+        # 35. Web: Smart Webpage Scraper & Reader
+        self.register(
+            name="scrape_webpage",
+            description="Scrapes a live webpage, extracting clean readable markdown text, articles, tables, and links while stripping boilerplate ads and navigation.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The target website URL to scrape."
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["content", "table", "links"],
+                        "description": "Extraction mode: 'content' for clean text/markdown, 'table' for tables, 'links' for URLs."
+                    },
+                    "max_chars": {
+                        "type": "integer",
+                        "description": "Max characters of content to return (default: 4000)."
+                    }
+                },
+                "required": ["url"]
+            },
+            handler=self._tool_scrape_webpage
+        )
+
+        # 36. Web: Webpage Screenshot Capture
+        self.register(
+            name="capture_webpage_screenshot",
+            description="Capture a high-resolution PNG screenshot of any live website URL using headless browser automation.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "Target website URL to capture."
+                    },
+                    "full_page": {
+                        "type": "boolean",
+                        "description": "If true, captures the entire scrollable page height instead of just the viewport."
+                    }
+                },
+                "required": ["url"]
+            },
+            handler=self._tool_capture_webpage_screenshot
+        )
+
     # ------------------ TOOL IMPLEMENTATIONS ------------------
 
     def _tool_system_telemetry(self, **kwargs) -> Dict[str, Any]:
@@ -1145,4 +1227,18 @@ class ToolRegistry:
             return {"status": "success" if ok else "not_found", "action": "delete", "contact_id": cid}
         else:
             return {"status": "error", "message": f"Unknown contact action: '{action}'."}
+
+    # --- Phase 8: Web Automation, Price Checks & Scraping Handlers ---
+
+    def _tool_check_product_prices(self, product_name: str, sites: Optional[List[str]] = None, max_results_per_site: int = 3, **kwargs) -> Dict[str, Any]:
+        """Compares product prices across e-commerce platforms."""
+        return self.web.check_product_prices(product_name=product_name, sites=sites, max_results_per_site=max_results_per_site)
+
+    def _tool_scrape_webpage(self, url: str, mode: str = "content", max_chars: int = 4000, **kwargs) -> Dict[str, Any]:
+        """Scrapes and parses a live webpage."""
+        return self.web.scrape_webpage(url=url, mode=mode, max_chars=max_chars)
+
+    def _tool_capture_webpage_screenshot(self, url: str, full_page: bool = False, **kwargs) -> Dict[str, Any]:
+        """Captures a PNG screenshot of a live website."""
+        return self.web.capture_webpage_screenshot(url=url, full_page=full_page)
 

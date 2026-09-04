@@ -322,6 +322,9 @@
             <button onclick="switchTab('docs')" id="tabBtn-docs" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
               <span>📚</span> Docs
             </button>
+            <button onclick="switchTab('web')" id="tabBtn-web" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>🌐</span> Web
+            </button>
             <button onclick="switchTab('memory')" id="tabBtn-memory" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 tab-active transition-all flex items-center gap-1">
               <span>🧠</span> Facts
             </button>
@@ -650,6 +653,145 @@
                 <option value="ta-IN-ValluvarNeural">Valluvar (Tamil - Male)</option>
               </select>
             </div>
+          </div>
+
+          <!-- Tab: Web Automation, Live Prices & Scraping -->
+          <div id="tabContent-web" class="tab-view hidden flex-1 flex flex-col gap-2.5 overflow-y-auto pr-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                <span>🌐</span> Web Automation & Price Radar
+              </span>
+              <div class="flex items-center gap-1 text-[10px] bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                <button onclick="switchWebSubmode('price')" id="webSubBtn-price" class="px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all">Prices</button>
+                <button onclick="switchWebSubmode('scrape')" id="webSubBtn-scrape" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all">Scraper</button>
+                <button onclick="switchWebSubmode('capture')" id="webSubBtn-capture" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all">Capture</button>
+              </div>
+            </div>
+
+            <!-- Subview 1: Price Radar -->
+            <div id="webSubView-price" class="flex flex-col gap-2.5">
+              <!-- Search & Store Controls -->
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <input id="priceQueryInput" type="text" placeholder="Search product (e.g. iPhone 15, Sony XM5)..."
+                    onkeydown="if(event.key==='Enter') executePriceCheckGui()"
+                    class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-cyan-500">
+                  <button onclick="executePriceCheckGui()" class="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white transition-all shadow-lg shadow-cyan-600/30 active:scale-95 flex items-center gap-1">
+                    <span>⚡</span> Compare
+                  </button>
+                </div>
+                <!-- Quick Tags & Store Filters -->
+                <div class="flex items-center justify-between flex-wrap gap-1 text-[10px]">
+                  <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-1 text-slate-400 cursor-pointer">
+                      <input type="checkbox" id="storeFilterAmazon" checked class="rounded border-slate-700 text-amber-500 focus:ring-0">
+                      <span>Amazon.in</span>
+                    </label>
+                    <label class="flex items-center gap-1 text-slate-400 cursor-pointer">
+                      <input type="checkbox" id="storeFilterFlipkart" checked class="rounded border-slate-700 text-blue-500 focus:ring-0">
+                      <span>Flipkart</span>
+                    </label>
+                  </div>
+                  <div class="flex items-center gap-1 text-slate-500 overflow-x-auto">
+                    <span>Quick:</span>
+                    <button onclick="quickPriceCheck('iPhone 15 128GB')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">iPhone 15</button>
+                    <button onclick="quickPriceCheck('Sony WH-1000XM5')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">Sony XM5</button>
+                    <button onclick="quickPriceCheck('MacBook Air M3')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">MacBook</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Spoken Summary / Best Deal Banner -->
+              <div id="priceDealBanner" class="hidden p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-300 flex items-start gap-2">
+                <span class="text-sm">🏷️</span>
+                <div class="flex-1">
+                  <p id="priceDealSummary" class="font-medium text-emerald-200"></p>
+                </div>
+              </div>
+
+              <!-- Results Cards Container -->
+              <div id="priceCardsContainer" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1">
+                <div class="p-4 text-center text-slate-500 text-xs border border-dashed border-slate-800/80 rounded-xl">
+                  Enter a product name above to compare live prices across Amazon and Flipkart.
+                </div>
+              </div>
+            </div>
+
+            <!-- Subview 2: Smart Scraper & Reader -->
+            <div id="webSubView-scrape" class="hidden flex flex-col gap-2.5">
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <input id="scrapeUrlInput" type="text" placeholder="https://en.wikipedia.org/wiki/Artificial_intelligence"
+                    onkeydown="if(event.key==='Enter') executeScrapeGui()"
+                    class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-indigo-500 font-mono">
+                  <button onclick="executeScrapeGui()" class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-all shadow-lg shadow-indigo-600/30 active:scale-95 flex items-center gap-1">
+                    <span>📖</span> Extract
+                  </button>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                  <div class="flex items-center gap-2">
+                    <span>Mode:</span>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="scrapeModeRadio" value="content" checked class="text-indigo-500">
+                      <span>Article Text</span>
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="scrapeModeRadio" value="tables" class="text-indigo-500">
+                      <span>Data Tables</span>
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="scrapeModeRadio" value="links" class="text-indigo-500">
+                      <span>Links</span>
+                    </label>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button onclick="quickScrape('https://en.wikipedia.org/wiki/Artificial_intelligence')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">Wikipedia AI</button>
+                    <button onclick="quickScrape('https://news.ycombinator.com')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">HackerNews</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Scrape Result Reader View -->
+              <div id="scrapeResultContainer" class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2 max-h-[200px] overflow-y-auto">
+                <div id="scrapeResultHeader" class="hidden flex items-center justify-between border-b border-slate-800 pb-1.5 text-[11px]">
+                  <span id="scrapeResultTitle" class="font-semibold text-slate-200 truncate max-w-[200px]"></span>
+                  <span id="scrapeResultWordCount" class="text-slate-400 font-mono"></span>
+                </div>
+                <div id="scrapeResultBody" class="text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed">
+                  <span class="text-slate-500">Enter a website URL above to scrape clean text, tables, or links without ads.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Subview 3: Web Screenshot Capture -->
+            <div id="webSubView-capture" class="hidden flex flex-col gap-2.5">
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <input id="captureUrlInput" type="text" placeholder="https://github.com"
+                    onkeydown="if(event.key==='Enter') executeWebCaptureGui()"
+                    class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-rose-500 font-mono">
+                  <button onclick="executeWebCaptureGui()" class="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-all shadow-lg shadow-rose-600/30 active:scale-95 flex items-center gap-1">
+                    <span>📸</span> Capture
+                  </button>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" id="captureFullPageCheck" class="rounded border-slate-700 text-rose-500 focus:ring-0">
+                    <span>Full-page capture (scrolls whole document)</span>
+                  </label>
+                  <button onclick="quickCapture('https://apple.com')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">Apple.com</button>
+                </div>
+              </div>
+
+              <!-- Capture Preview -->
+              <div id="capturePreviewContainer" class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col items-center justify-center min-h-[160px] max-h-[200px] overflow-hidden text-xs text-slate-500">
+                <div id="capturePreviewPlaceholder">
+                  <span>Enter a webpage URL and click Capture to generate a visual screenshot.</span>
+                </div>
+                <img id="capturePreviewImage" class="hidden max-h-[180px] w-auto rounded-lg border border-slate-700 object-contain shadow-lg" alt="Web Capture Preview" />
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -2860,6 +3002,420 @@
               <span>💬</span> Follow-up
             </button>
             <span class="ml-auto font-mono text-cyan-400">Document RAG Active</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 8: WEB AUTOMATION, PRICE RADAR & SCRAPING ENGINE
+    // ═══════════════════════════════════════════════════════════════════
+
+    let activeWebSubmode = 'price';
+
+    function switchWebSubmode(sub) {
+      activeWebSubmode = sub;
+      ['price', 'scrape', 'capture'].forEach(m => {
+        const btn = document.getElementById(`webSubBtn-${m}`);
+        const view = document.getElementById(`webSubView-${m}`);
+        if (btn) {
+          if (m === sub) {
+            btn.className = 'px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all';
+          } else {
+            btn.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all';
+          }
+        }
+        if (view) {
+          if (m === sub) view.classList.remove('hidden');
+          else view.classList.add('hidden');
+        }
+      });
+    }
+
+    function quickPriceCheck(query) {
+      const input = document.getElementById('priceQueryInput');
+      if (input) input.value = query;
+      executePriceCheckGui();
+    }
+
+    async function executePriceCheckGui() {
+      const input = document.getElementById('priceQueryInput');
+      const query = input ? input.value.trim() : '';
+      if (!query) return;
+
+      appendUserBubble(`Compare prices for ${query}`, 'Joshua');
+      setVoiceState('thinking');
+
+      const sites = [];
+      if (document.getElementById('storeFilterAmazon')?.checked) sites.push('amazon');
+      if (document.getElementById('storeFilterFlipkart')?.checked) sites.push('flipkart');
+      if (sites.length === 0) sites.push('amazon', 'flipkart');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-cyan-950/80 border border-cyan-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-cyan-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+        <span class="font-mono">🛒 Price Radar: Scanning live prices on ${sites.join(' & ')}...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.check_prices(query, sites, true);
+          badge.remove();
+          if (res && res.status === 'success') {
+            renderPriceCards(res);
+            appendPriceCardBubble(res);
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble(res.message || "Could not retrieve live prices right now.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Price check error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          const mockRes = {
+            status: "success",
+            query: query,
+            total_found: 2,
+            summary: `I found ${query} on Flipkart for ₹64,999, which is ₹4,000 cheaper than Amazon (₹68,999).`,
+            best_deal: { store: "Flipkart", title: query, price: "₹64,999", rating: "4.6 ★", url: "https://flipkart.com" },
+            products: [
+              { store: "Flipkart", title: `${query} (128GB)`, price: "₹64,999", original_price: "₹79,900", discount: "18% off", rating: "4.6 ★", url: "https://flipkart.com", image: "" },
+              { store: "Amazon", title: `${query} (128GB)`, price: "₹68,999", original_price: "₹79,900", rating: "4.5 out of 5", url: "https://amazon.in", image: "" }
+            ]
+          };
+          renderPriceCards(mockRes);
+          appendPriceCardBubble(mockRes);
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    function renderPriceCards(res) {
+      const container = document.getElementById('priceCardsContainer');
+      const banner = document.getElementById('priceDealBanner');
+      const summaryText = document.getElementById('priceDealSummary');
+      if (!container) return;
+
+      if (banner && summaryText && res.summary) {
+        banner.classList.remove('hidden');
+        summaryText.innerText = res.summary;
+      }
+
+      const products = res.products || [];
+      if (products.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-slate-500 text-xs">No listings found.</div>';
+        return;
+      }
+
+      container.innerHTML = products.map((p, idx) => {
+        const isBest = (res.best_deal && res.best_deal.price === p.price);
+        const storeBadgeClass = p.store.toLowerCase() === 'amazon' ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-blue-950/80 text-blue-300 border-blue-500/50';
+        return `
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border ${isBest ? 'border-emerald-500/70 shadow-lg shadow-emerald-500/10' : 'border-slate-800'} flex items-start gap-2.5 transition-all hover:border-slate-700">
+            <div class="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center flex-shrink-0 text-sm overflow-hidden">
+              ${p.image ? `<img src="${p.image}" class="w-full h-full object-contain" />` : (p.store.toLowerCase() === 'amazon' ? '📦' : '🛒')}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-mono border ${storeBadgeClass}">${escapeHtml(p.store)}</span>
+                ${isBest ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-500/60 font-semibold">🌟 BEST DEAL</span>' : ''}
+                ${p.discount ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-rose-950 text-rose-300 border border-rose-500/40">${escapeHtml(p.discount)}</span>` : ''}
+                ${p.rating ? `<span class="text-[10px] text-amber-400 font-mono ml-auto">${escapeHtml(p.rating)}</span>` : ''}
+              </div>
+              <p class="text-[11px] font-medium text-slate-200 truncate mt-1" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</p>
+              <div class="flex items-center justify-between mt-1 text-xs">
+                <div class="flex items-baseline gap-1.5">
+                  <span class="font-bold text-cyan-400 font-mono">${escapeHtml(p.price)}</span>
+                  ${p.original_price ? `<span class="text-[10px] text-slate-500 line-through font-mono">${escapeHtml(p.original_price)}</span>` : ''}
+                </div>
+                ${p.url ? `<a href="${p.url}" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-0.5 font-medium">Buy Now ↗</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function appendPriceCardBubble(res) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const productsHtml = (res.products || []).slice(0, 4).map(p => {
+        const isBest = (res.best_deal && res.best_deal.price === p.price);
+        const storeBadgeClass = p.store.toLowerCase() === 'amazon' ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-blue-950/80 text-blue-300 border-blue-500/50';
+        return `
+          <div class="p-2.5 rounded-xl bg-slate-950/90 border ${isBest ? 'border-emerald-500/80 shadow-md shadow-emerald-500/20' : 'border-slate-800'} flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center flex-shrink-0 text-sm overflow-hidden">
+              ${p.image ? `<img src="${p.image}" class="w-full h-full object-contain" />` : (p.store.toLowerCase() === 'amazon' ? '📦' : '🛒')}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-mono border ${storeBadgeClass}">${escapeHtml(p.store)}</span>
+                ${isBest ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-500/60 font-bold">BEST DEAL</span>' : ''}
+                ${p.rating ? `<span class="text-[10px] text-amber-400 ml-auto font-mono">${escapeHtml(p.rating)}</span>` : ''}
+              </div>
+              <p class="text-xs font-semibold text-slate-200 truncate mt-0.5">${escapeHtml(p.title)}</p>
+              <div class="flex items-center justify-between text-xs mt-0.5">
+                <span class="font-bold text-emerald-400 font-mono">${escapeHtml(p.price)}</span>
+                ${p.url ? `<a href="${p.url}" target="_blank" class="text-[10px] text-cyan-400 hover:text-cyan-300 font-medium">View Store ↗</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS Price Radar • ${time} • <span class="text-emerald-400">Multi-Store Intel</span></span>
+        <div class="w-full bg-slate-900/95 border border-cyan-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-3">
+          <div class="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/50 text-xs text-emerald-300 font-medium flex items-center gap-2">
+            <span>🏷️</span>
+            <span>${escapeHtml(res.summary)}</span>
+          </div>
+          <div class="flex flex-col gap-2">
+            ${productsHtml}
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
+            <span class="font-mono text-cyan-400">Amazon & Flipkart Live Scrape</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function quickScrape(url) {
+      const input = document.getElementById('scrapeUrlInput');
+      if (input) input.value = url;
+      executeScrapeGui();
+    }
+
+    async function executeScrapeGui() {
+      const input = document.getElementById('scrapeUrlInput');
+      const url = input ? input.value.trim() : '';
+      if (!url) return;
+
+      const modeRadio = document.querySelector('input[name="scrapeModeRadio"]:checked');
+      const mode = modeRadio ? modeRadio.value : 'content';
+
+      appendUserBubble(`Scrape webpage: ${url} (${mode})`, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+        <span class="font-mono">📖 Smart Scraper: Extracting clean content from ${url}...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.scrape_url(url, mode, true);
+          badge.remove();
+          if (res && res.status === 'success') {
+            renderScrapeResult(res);
+            appendScrapeBubble(res);
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble(res.message || "Failed to extract web content.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Scrape error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          const mock = {
+            status: "success",
+            url: url,
+            title: "Simulated Web Document",
+            word_count: 245,
+            content: `# Example Scraped Article\n\nThis is a clean extraction of the article without ads or navigation menus.`,
+            summary: `Extracted 245 words from '${url}'.`
+          };
+          renderScrapeResult(mock);
+          appendScrapeBubble(mock);
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    function renderScrapeResult(res) {
+      const header = document.getElementById('scrapeResultHeader');
+      const titleEl = document.getElementById('scrapeResultTitle');
+      const countEl = document.getElementById('scrapeResultWordCount');
+      const bodyEl = document.getElementById('scrapeResultBody');
+
+      if (header && titleEl && countEl) {
+        header.classList.remove('hidden');
+        titleEl.innerText = res.title || res.url;
+        countEl.innerText = `${res.word_count || 0} words`;
+      }
+
+      if (bodyEl) {
+        if (res.tables && res.tables.length > 0) {
+          let tablesHtml = res.tables.map((tbl, i) => `
+            <div class="mb-3">
+              <span class="text-indigo-400 font-bold text-[11px]">Table #${i+1}</span>
+              <table class="w-full text-[10px] text-left border-collapse border border-slate-800 mt-1">
+                ${tbl.map((row, ri) => `
+                  <tr class="${ri === 0 ? 'bg-slate-900 font-semibold text-slate-200' : 'border-t border-slate-800/60 text-slate-300'}">
+                    ${row.map(cell => `<td class="p-1 border border-slate-800/80">${escapeHtml(cell)}</td>`).join('')}
+                  </tr>
+                `).join('')}
+              </table>
+            </div>
+          `).join('');
+          bodyEl.innerHTML = tablesHtml;
+        } else if (res.links && res.links.length > 0) {
+          bodyEl.innerHTML = `
+            <div class="flex flex-col gap-1 text-[11px]">
+              ${res.links.map(l => `<a href="${l.url}" target="_blank" class="text-blue-400 hover:underline truncate">• ${escapeHtml(l.text)} (${escapeHtml(l.url)})</a>`).join('')}
+            </div>
+          `;
+        } else {
+          bodyEl.innerText = res.content || res.summary || '';
+        }
+      }
+    }
+
+    function appendScrapeBubble(res) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const previewText = res.content ? (res.content.length > 500 ? res.content.substring(0, 500) + '...' : res.content) : res.summary;
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS Smart Scraper • ${time} • <span class="text-indigo-400">${escapeHtml(res.title || res.url)}</span></span>
+        <div class="w-full bg-slate-900/95 border border-indigo-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2.5">
+          <div class="flex items-center justify-between text-[11px] pb-1 border-b border-slate-800">
+            <span class="font-semibold text-slate-200 truncate max-w-[250px]">${escapeHtml(res.title || 'Scraped Content')}</span>
+            <span class="font-mono text-indigo-400">${res.word_count || 0} words</span>
+          </div>
+          <div class="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">${escapeHtml(previewText)}</div>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
+            <button onclick="copyVisionAnalysis(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>📋</span> Copy
+            </button>
+            <span class="font-mono text-cyan-400">Boilerplate & Ads Stripped</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function quickCapture(url) {
+      const input = document.getElementById('captureUrlInput');
+      if (input) input.value = url;
+      executeWebCaptureGui();
+    }
+
+    async function executeWebCaptureGui() {
+      const input = document.getElementById('captureUrlInput');
+      const url = input ? input.value.trim() : '';
+      if (!url) return;
+
+      const fullPage = document.getElementById('captureFullPageCheck')?.checked || false;
+
+      appendUserBubble(`Capture webpage screenshot: ${url}`, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-rose-950/80 border border-rose-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-rose-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping"></span>
+        <span class="font-mono">📸 Web Engine: Capturing screenshot of ${url}...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.capture_web_screenshot(url, fullPage);
+          badge.remove();
+          if (res && res.status === 'success') {
+            const previewImg = document.getElementById('capturePreviewImage');
+            const placeholder = document.getElementById('capturePreviewPlaceholder');
+            if (previewImg && res.preview_base64) {
+              previewImg.src = res.preview_base64;
+              previewImg.classList.remove('hidden');
+              if (placeholder) placeholder.classList.add('hidden');
+            }
+            appendWebCaptureBubble(res);
+            setVoiceState('standby');
+          } else {
+            appendAiBubble(res.message || "Failed to capture web screenshot.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Web capture error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          appendAiBubble("Browser Simulation: Web screenshot captured.");
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    function appendWebCaptureBubble(res) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const imgTag = res.preview_base64 ? `
+        <div class="w-full rounded-xl overflow-hidden border border-slate-700 bg-slate-950 mt-1">
+          <img src="${res.preview_base64}" class="w-full h-auto max-h-[260px] object-cover" />
+        </div>
+      ` : '';
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS Visual Web Capture • ${time} • <span class="text-rose-400">${escapeHtml(res.title || res.url)}</span></span>
+        <div class="w-full bg-slate-900/95 border border-rose-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2.5">
+          ${imgTag}
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <span>Saved to: <span class="font-mono text-slate-200">${escapeHtml(res.screenshot_path || '')}</span></span>
+            <span class="font-mono text-rose-400">${res.full_page ? 'Full Page' : 'Viewport'}</span>
           </div>
         </div>
       `;

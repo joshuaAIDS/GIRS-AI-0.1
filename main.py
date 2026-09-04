@@ -77,6 +77,10 @@ def print_help():
   {C_CYAN}/mail check{C_RESET}             - Check unread emails via IMAP
   {C_CYAN}/contact <list|add|del>{C_RESET}  - Manage personal contacts and phone numbers
   {C_CYAN}/play <media title>{C_RESET}    - Search & play music on YouTube or Spotify
+  {C_PURPLE}{C_BOLD}[Web Automation & Price Intelligence]{C_RESET}
+  {C_CYAN}/price <product name>{C_RESET}     - Compare prices on Amazon & Flipkart with best deal finder
+  {C_CYAN}/scrape <url> [mode]{C_RESET}      - Clean article/content scraper (modes: content, tables, links)
+  {C_CYAN}/webscreen <url>{C_RESET}          - Capture headless webpage screenshot
   {C_CYAN}/briefing{C_RESET}              - Daily morning briefing (weather, time, battery, reminders)
   {C_CYAN}/telemetry{C_RESET}             - Inspect computer CPU, RAM, and Battery status
   {C_CYAN}/gui{C_RESET}                   - Launch the 3D Cyber Command Center Desktop Window
@@ -552,6 +556,71 @@ def handle_slash_command(command: str, assistant: IGIRSAssistant) -> bool:
         for n in notes:
             print(f"  • [{n.get('created_at', '')}] #{n.get('id')}: {n.get('note')}")
         print()
+        return True
+
+    elif action in ("/price", "/prices", "/deal"):
+        if not arg:
+            print(f"{C_RED}Usage: /price <product name>{C_RESET} (e.g. /price iPhone 15 128GB)")
+        else:
+            print(f"\n{C_YELLOW}🛒 Scanning live prices across Amazon & Flipkart for '{arg}'...{C_RESET}")
+            res = assistant.tools.web.check_product_prices(product_name=arg)
+            print(f"\n{C_CYAN}{C_BOLD}IGIRS Price Intelligence:{C_RESET} {res.get('summary')}\n")
+            for p in res.get("products", []):
+                store_badge = f"{C_GREEN}[{p.get('store')}]{C_RESET}"
+                rating_badge = f" ({p.get('rating')})" if p.get("rating") else ""
+                print(f"  • {store_badge} {C_BOLD}{p.get('title')}{C_RESET}: {C_YELLOW}{p.get('price')}{C_RESET}{rating_badge}")
+                if p.get("url"):
+                    print(f"    {C_DIM}{p.get('url')}{C_RESET}")
+            print()
+            if assistant.tts.enabled and res.get("summary"):
+                assistant.tts.speak(res["summary"])
+        return True
+
+    elif action in ("/scrape", "/extract"):
+        parts = arg.strip().split(maxsplit=1)
+        if not parts:
+            print(f"{C_RED}Usage: /scrape <url> [mode: content|tables|links]{C_RESET}")
+        else:
+            target_url = parts[0]
+            mode = parts[1] if len(parts) > 1 else "content"
+            print(f"\n{C_YELLOW}🌐 Scraping '{target_url}' (mode: {mode})...{C_RESET}")
+            res = assistant.tools.web.scrape_webpage(url=target_url, mode=mode)
+            if res.get("status") == "success":
+                print(f"\n{C_CYAN}{C_BOLD}Title:{C_RESET} {res.get('title')}")
+                print(f"{C_DIM}Word count: {res.get('word_count')}{C_RESET}\n")
+                if mode == "tables" and res.get("tables"):
+                    print(f"{C_PURPLE}{C_BOLD}Extracted Tables:{C_RESET}")
+                    for t_idx, tbl in enumerate(res["tables"], 1):
+                        print(f"  Table #{t_idx}:")
+                        for r in tbl[:5]:
+                            print(f"    {' | '.join(r)}")
+                elif mode == "links" and res.get("links"):
+                    print(f"{C_PURPLE}{C_BOLD}Extracted Links:{C_RESET}")
+                    for lnk in res["links"][:10]:
+                        print(f"  • {lnk.get('text')}: {C_DIM}{lnk.get('url')}{C_RESET}")
+                else:
+                    preview = res.get("content", "")
+                    if len(preview) > 1000:
+                        preview = preview[:1000] + "\n...(use GUI reader mode to view full text)..."
+                    print(f"{preview}\n")
+                if assistant.tts.enabled and res.get("summary"):
+                    assistant.tts.speak(res["summary"])
+            else:
+                print(f"{C_RED}Scrape Failed: {res.get('message')}{C_RESET}")
+        return True
+
+    elif action in ("/webscreen", "/webcap"):
+        if not arg:
+            print(f"{C_RED}Usage: /webscreen <url>{C_RESET}")
+        else:
+            print(f"\n{C_YELLOW}📸 Capturing web screenshot of '{arg}'...{C_RESET}")
+            res = assistant.tools.web.capture_webpage_screenshot(url=arg)
+            if res.get("status") == "success":
+                print(f"{C_GREEN}✔ Saved web screenshot to {res.get('screenshot_path')}{C_RESET}")
+                if assistant.tts.enabled:
+                    assistant.tts.speak(f"Captured screenshot of {res.get('title', arg)}.")
+            else:
+                print(f"{C_RED}Capture Failed: {res.get('message')}{C_RESET}")
         return True
 
     elif action == "/clear":
