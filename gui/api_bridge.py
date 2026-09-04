@@ -15,7 +15,8 @@ class DesktopApiBridge:
         self._assistant = assistant
         self._window = window
         # Hook barge-in event to GUI voice state
-        self._assistant.tts.set_on_barge_in(self._on_barge_in_fired)
+        if self._assistant and hasattr(self._assistant, "tts") and self._assistant.tts:
+            self._assistant.tts.set_on_barge_in(self._on_barge_in_fired)
 
     def _on_barge_in_fired(self):
         """Called immediately when user speaks over assistant speech."""
@@ -202,3 +203,30 @@ class DesktopApiBridge:
     def is_speaking(self) -> bool:
         """Returns True if voice audio is actively playing."""
         return self._assistant.tts.is_speaking()
+
+    # --- Media Controls Bridge ---
+
+    def play_media(self, query: str, platform: str = "auto") -> Dict[str, Any]:
+        """Plays music or video via Spotify or YouTube."""
+        import tools.media_controls as media_controls
+        return media_controls.play_media(query=query, platform=platform)
+
+    def control_media(self, action: str) -> Dict[str, Any]:
+        """Controls global Windows media playback (play, pause, next, previous, stop)."""
+        import tools.media_controls as media_controls
+        return media_controls.control_media(action=action)
+
+    def is_spotify_installed(self) -> bool:
+        """Checks if Spotify is installed on this machine."""
+        import tools.media_controls as media_controls
+        return media_controls.is_spotify_installed()
+
+    def play_spotify(self, query: str = "") -> Dict[str, Any]:
+        """Plays track/artist/playlist on Spotify."""
+        import tools.media_controls as media_controls
+        return media_controls.play_spotify(query=query)
+
+    def play_youtube(self, query: str, autoplay: bool = True) -> Dict[str, Any]:
+        """Searches YouTube and plays top video with autoplay."""
+        import tools.media_controls as media_controls
+        return media_controls.play_youtube(query=query, autoplay=autoplay)

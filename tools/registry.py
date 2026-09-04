@@ -369,6 +369,83 @@ class ToolRegistry:
             handler=self._tool_get_weather
         )
 
+        # 21. Media: Unified Voice Media Player (Spotify & YouTube)
+        self.register(
+            name="play_media",
+            description="Play songs, music, albums, artists, playlists, videos, or podcasts on Spotify or YouTube. Automatically routes to the right platform or respects user's explicit choice. Call when user says 'play Bohemian Rhapsody', 'play some lofi beats', 'play music', 'play video tutorial'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The song title, artist, playlist, or video query to play."
+                    },
+                    "platform": {
+                        "type": "string",
+                        "enum": ["auto", "spotify", "youtube"],
+                        "description": "Target platform: 'auto' (default), 'spotify', or 'youtube'."
+                    }
+                },
+                "required": ["query"]
+            },
+            handler=self._tool_play_media
+        )
+
+        # 22. Media: YouTube Auto-Play & Search
+        self.register(
+            name="play_youtube",
+            description="Search YouTube and automatically open and play the top video with autoplay. Call when user says 'play ... on YouTube', 'open YouTube video ...', 'watch ... on YouTube'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The video search query or song to play on YouTube."
+                    },
+                    "autoplay": {
+                        "type": "boolean",
+                        "description": "Whether to automatically start playback (defaults to true)."
+                    }
+                },
+                "required": ["query"]
+            },
+            handler=self._tool_play_youtube
+        )
+
+        # 23. Media: Spotify Search & Playback
+        self.register(
+            name="play_spotify",
+            description="Search and play a song, artist, album, or playlist on Spotify, or resume Spotify playback. Call when user says 'play ... on Spotify', 'open Spotify', 'resume Spotify'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Optional song, artist, or playlist name. If empty, resumes current Spotify playback."
+                    }
+                }
+            },
+            handler=self._tool_play_spotify
+        )
+
+        # 24. Media: Global Playback Controls
+        self.register(
+            name="control_media",
+            description="Control media playback on Windows (play, pause, next track, previous track, stop, mute). Works globally across Spotify, YouTube, VLC, and browser tabs without needing window focus. Call when user says 'pause music', 'resume song', 'next track', 'skip song', 'previous track', 'stop music'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["play", "pause", "play_pause", "next", "previous", "stop", "mute"],
+                        "description": "Playback action to execute."
+                    }
+                },
+                "required": ["action"]
+            },
+            handler=self._tool_control_media
+        )
+
     # ------------------ TOOL IMPLEMENTATIONS ------------------
 
     def _tool_system_telemetry(self, **kwargs) -> Dict[str, Any]:
@@ -628,4 +705,26 @@ class ToolRegistry:
         """Gets real-time weather."""
         import tools.productivity as productivity
         return productivity.get_live_weather(city=city)
+
+    # --- Phase 3: Media Control Handlers ---
+
+    def _tool_play_media(self, query: str, platform: str = "auto", **kwargs) -> Dict[str, Any]:
+        """Plays media on Spotify or YouTube with auto-routing."""
+        import tools.media_controls as media_controls
+        return media_controls.play_media(query=query, platform=platform)
+
+    def _tool_play_youtube(self, query: str, autoplay: bool = True, **kwargs) -> Dict[str, Any]:
+        """Searches YouTube and plays top video with autoplay."""
+        import tools.media_controls as media_controls
+        return media_controls.play_youtube(query=query, autoplay=autoplay)
+
+    def _tool_play_spotify(self, query: str = "", **kwargs) -> Dict[str, Any]:
+        """Searches and plays on Spotify."""
+        import tools.media_controls as media_controls
+        return media_controls.play_spotify(query=query)
+
+    def _tool_control_media(self, action: str, **kwargs) -> Dict[str, Any]:
+        """Controls global Windows media playback."""
+        import tools.media_controls as media_controls
+        return media_controls.control_media(action=action)
 

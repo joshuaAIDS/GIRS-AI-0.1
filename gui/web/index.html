@@ -280,7 +280,7 @@
       </div>
 
       <!-- CENTER SPACER: Lets the 3D Orb shine in center -->
-      <div class="hidden lg:flex lg:col-span-2 flex-col items-center justify-center gap-3">
+      <div class="hidden lg:flex lg:col-span-2 flex-col items-center justify-center gap-2.5">
         <button onclick="triggerVoiceCycle()" class="hud-interactive px-4 py-2 rounded-full bg-slate-950/70 border border-blue-500/30 text-xs font-mono text-blue-300 hover:text-white hover:border-blue-400 backdrop-blur-md transition-all shadow-xl hover:scale-105 flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
           <span>🎙️ Push to Talk</span>
@@ -289,6 +289,16 @@
           <span id="centerAlwaysDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
           <span id="centerAlwaysText">⚡ Continuous Voice</span>
         </button>
+
+        <!-- Cyber Media Dock -->
+        <div class="hud-interactive flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-950/80 border border-slate-700/60 backdrop-blur-md shadow-2xl transition-all hover:border-blue-500/50 select-none">
+          <button onclick="triggerMediaControl('previous')" title="Previous Track (Windows Media Key)" class="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-[10px] transition-all active:scale-90">⏮️</button>
+          <button onclick="triggerMediaControl('play_pause')" title="Play / Pause (Windows Media Key)" class="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center text-xs transition-all shadow-lg shadow-blue-600/30 active:scale-90">⏯️</button>
+          <button onclick="triggerMediaControl('next')" title="Next Track (Windows Media Key)" class="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-[10px] transition-all active:scale-90">⏭️</button>
+          <div class="w-px h-3.5 bg-slate-700 mx-0.5"></div>
+          <button onclick="triggerSpotifyQuick()" title="Launch / Resume Spotify" class="w-7 h-7 rounded-full bg-emerald-950/80 hover:bg-emerald-600 text-emerald-400 hover:text-white flex items-center justify-center text-[11px] transition-all border border-emerald-500/30 active:scale-90">🟢</button>
+          <button onclick="triggerYouTubeQuick()" title="Open YouTube" class="w-7 h-7 rounded-full bg-rose-950/80 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center text-[11px] transition-all border border-rose-500/30 active:scale-90">🔴</button>
+        </div>
       </div>
 
       <!-- RIGHT HUD: Fact Vault & Telemetry -->
@@ -301,6 +311,9 @@
             </button>
             <button onclick="switchTab('diagnostics')" id="tabBtn-diagnostics" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all">
               ⚡ Telemetry & Tools
+            </button>
+            <button onclick="switchTab('media')" id="tabBtn-media" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all">
+              🎵 Media
             </button>
             <button onclick="switchTab('settings')" id="tabBtn-settings" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all">
               ⚙️ Settings
@@ -365,6 +378,69 @@
             </div>
             <div class="flex-1 bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-400 overflow-y-auto" id="benchOutput">
               // Telemetry bench ready. Click a tool above to run.
+            </div>
+          </div>
+
+          <!-- Tab: Media -->
+          <div id="tabContent-media" class="tab-view hidden flex-1 flex flex-col gap-3 overflow-y-auto">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-300">Media & Playback</span>
+              <span id="mediaStatusBadge" class="text-[10px] font-mono text-emerald-400">Ready</span>
+            </div>
+
+            <!-- Global Hardware Media Keys -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+              <span class="text-[11px] font-mono text-slate-400">Windows Global Controls</span>
+              <div class="grid grid-cols-4 gap-2">
+                <button onclick="triggerMediaControl('previous')" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95">
+                  ⏮️ Prev
+                </button>
+                <button onclick="triggerMediaControl('play_pause')" class="py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center gap-1 shadow-lg shadow-blue-600/30 transition-all active:scale-95">
+                  ⏯️ Play
+                </button>
+                <button onclick="triggerMediaControl('next')" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95">
+                  ⏭️ Next
+                </button>
+                <button onclick="triggerMediaControl('stop')" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-rose-400 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95">
+                  ⏹️ Stop
+                </button>
+              </div>
+            </div>
+
+            <!-- Spotify Quick Play -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                  <span>🟢</span> Spotify Search & Play
+                </span>
+                <button onclick="triggerSpotifyQuick()" class="text-[10px] text-slate-400 hover:text-emerald-300 font-mono">Open App ↗</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="spotifyQueryInput" type="text" placeholder="Song, artist, or playlist..." 
+                  onkeydown="if(event.key==='Enter') triggerSpotifyPlay()"
+                  class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-emerald-500">
+                <button onclick="triggerSpotifyPlay()" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition-all">
+                  Play
+                </button>
+              </div>
+            </div>
+
+            <!-- YouTube Quick Autoplay -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono text-rose-400 flex items-center gap-1">
+                  <span>🔴</span> YouTube Video & Music
+                </span>
+                <button onclick="triggerYouTubeQuick()" class="text-[10px] text-slate-400 hover:text-rose-300 font-mono">Open Web ↗</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="youtubeQueryInput" type="text" placeholder="Search and autoplay video..." 
+                  onkeydown="if(event.key==='Enter') triggerYouTubePlay()"
+                  class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-rose-500">
+                <button onclick="triggerYouTubePlay()" class="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-all">
+                  Play
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1485,6 +1561,59 @@
 
       if (tabId === 'diagnostics') refreshTelemetry();
       if (tabId === 'memory') loadFacts();
+    }
+
+    async function triggerMediaControl(action) {
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.control_media(action);
+          const badge = document.getElementById('mediaStatusBadge');
+          if (badge && res) {
+            badge.innerText = res.action ? res.action.replace('_', ' ').toUpperCase() : 'OK';
+            setTimeout(() => { badge.innerText = 'Ready'; }, 2500);
+          }
+        } catch (e) { console.error('Media control error:', e); }
+      }
+    }
+
+    async function triggerSpotifyPlay() {
+      const input = document.getElementById('spotifyQueryInput');
+      const q = input ? input.value.trim() : '';
+      if (!q) return;
+      if (hasBridge()) {
+        await window.pywebview.api.play_spotify(q);
+      } else {
+        window.open(`https://open.spotify.com/search/${encodeURIComponent(q)}`, '_blank');
+      }
+      if (input) input.value = '';
+    }
+
+    async function triggerYouTubePlay() {
+      const input = document.getElementById('youtubeQueryInput');
+      const q = input ? input.value.trim() : '';
+      if (!q) return;
+      if (hasBridge()) {
+        await window.pywebview.api.play_youtube(q, true);
+      } else {
+        window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, '_blank');
+      }
+      if (input) input.value = '';
+    }
+
+    async function triggerSpotifyQuick() {
+      if (hasBridge()) {
+        await window.pywebview.api.play_spotify('');
+      } else {
+        window.open('https://open.spotify.com', '_blank');
+      }
+    }
+
+    async function triggerYouTubeQuick() {
+      if (hasBridge()) {
+        await window.pywebview.api.play_youtube('', false);
+      } else {
+        window.open('https://www.youtube.com', '_blank');
+      }
     }
 
     async function sendStreamMessage() {
