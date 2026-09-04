@@ -1,98 +1,30 @@
 [
   {
     "role": "user",
-    "content": "Badshah"
+    "content": "What is the current time?"
   },
   {
     "role": "assistant",
-    "content": "Playing Badshah songs for you right now!"
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-d273c9e5c1484e5e9576ee24ffd7bde1",
+        "type": "function",
+        "function": {
+          "name": "get_time_date",
+          "arguments": "{}"
+        }
+      }
+    ]
   },
   {
-    "role": "user",
-    "content": "pause the"
-  },
-  {
-    "role": "assistant",
-    "content": "All set, Joshua!"
-  },
-  {
-    "role": "user",
-    "content": "Resume the"
-  },
-  {
-    "role": "assistant",
-    "content": "Playback resumed! Enjoying Badshah's tunes again!"
-  },
-  {
-    "role": "user",
-    "content": "meaning in Tamil"
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-d273c9e5c1484e5e9576ee24ffd7bde1",
+    "name": "get_time_date",
+    "content": "{\"date\": \"Friday, September 04, 2026\", \"time_12hr\": \"07:38:24 PM\", \"time_24hr\": \"19:38:24\", \"iso_format\": \"2026-09-04T19:38:24.750764\"}"
   },
   {
     "role": "assistant",
-    "content": "பாடலின் பொருள் பற்றி தெரிந்து கொள்வோம்."
-  },
-  {
-    "role": "user",
-    "content": "tell me any Tamil"
-  },
-  {
-    "role": "assistant",
-    "content": "வணக்கம், ஜோசுவா!"
-  },
-  {
-    "role": "user",
-    "content": "tell me any Tamil na"
-  },
-  {
-    "role": "assistant",
-    "content": "நன்றி, ஜோசுவா!"
-  },
-  {
-    "role": "user",
-    "content": "tell me any Tamil Nadu news"
-  },
-  {
-    "role": "assistant",
-    "content": "தமிழகத்தில் இன்று செய்திகள்: சென்னையில் மழை தொடர்ச்சியாக பொழிந்து வருகிறது."
-  },
-  {
-    "role": "user",
-    "content": "explain me Hotspot"
-  },
-  {
-    "role": "assistant",
-    "content": "ஹாட்ஸ்பாட் என்பது ஒரு கம்ப்யூட்டரின் மூலம் இணைய பயன்பாடுகளுக்காக இணைய அலைபேசியை பயன்படுத்தும் வசதியாகும்"
-  },
-  {
-    "role": "user",
-    "content": "explain me what is quantum physics"
-  },
-  {
-    "role": "assistant",
-    "content": "கவன்டம் இயற்பியல் என்பது ஒரு அணுக்கருவியின் அளவில் அமைந்துள்ள தனித்துவமான பண்புகளைப் பற்றி ஆராயும் இயற்பியல் து"
-  },
-  {
-    "role": "user",
-    "content": "speak ine English"
-  },
-  {
-    "role": "assistant",
-    "content": "Quantum physics is a branch of physics that studies the behavior of matter and energy at an atomic and subatomic level. It's a world where particles can be in two places at once, where time and space are relative, and where the act of observing something can change its behavior. It's a weird and fascinating world that's governed by its own set of rules, and it's the foundation of many modern technologies, from transistors to lasers to computer chips."
-  },
-  {
-    "role": "user",
-    "content": "stop"
-  },
-  {
-    "role": "assistant",
-    "content": "I've stopped listening, Joshua. Click the mic whenever you need me!"
-  },
-  {
-    "role": "user",
-    "content": "stop listen"
-  },
-  {
-    "role": "assistant",
-    "content": "I've stopped listening, Joshua. Tap the mic or continuous voice whenever you need me!"
+    "content": "It's 7:38 PM right now, Joshua."
   }
 ]

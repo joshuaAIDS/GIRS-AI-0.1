@@ -294,21 +294,50 @@ def click_whatsapp_send_button(hwnd: Optional[int] = None) -> bool:
 
 def click_outlook_send_button(hwnd: Optional[int] = None) -> bool:
     """
-    Clicks the blue Send button in Outlook compose window (top-left toolbar region).
+    Clicks the blue Send button in Outlook compose window.
+    Uses pixel color detection in the top-left toolbar region with geometric fallback.
     """
     try:
-        from utils.vision import attach_to_input_desktop
+        from utils.vision import attach_to_input_desktop, capture_screen_to_pil
+        import numpy as np
         import pyautogui
 
         with attach_to_input_desktop():
             pyautogui.FAILSAFE = False
+            img = capture_screen_to_pil()
+            if img:
+                w, h = img.size
+                search_box = (0, 0, min(500, w), min(400, h))
+                if hwnd and user32.IsWindow(hwnd):
+                    rect = wintypes.RECT()
+                    if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                        if rect.right > rect.left and rect.bottom > rect.top:
+                            wl = max(0, rect.left)
+                            wt = max(0, rect.top)
+                            search_box = (wl, wt, min(wl + 400, w), min(wt + 350, h))
+
+                crop = img.crop(search_box)
+                arr = np.array(crop)
+
+                # Outlook blue Send button signature: R < 50, G > 80, B > 170
+                mask = (arr[:, :, 0] < 50) & (arr[:, :, 1] > 80) & (arr[:, :, 2] > 170)
+                y_idx, x_idx = np.where(mask)
+
+                if len(y_idx) >= 15:
+                    bx = int(np.mean(x_idx)) + search_box[0]
+                    by = int(np.mean(y_idx)) + search_box[1]
+                    logger.info(f"⚡ Outlook Blue Send button detected at ({bx}, {by}). Clicking...")
+                    pyautogui.click(bx, by)
+                    time.sleep(0.3)
+                    return True
+
+            # Geometry fallback
             if hwnd and user32.IsWindow(hwnd):
                 rect = wintypes.RECT()
                 if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
                     if rect.right > rect.left and rect.bottom > rect.top:
-                        # In New Outlook / Classic Outlook compose window, Send button is at top left
-                        btn_x = rect.left + 65
-                        btn_y = rect.top + 155
+                        btn_x = rect.left + 75
+                        btn_y = rect.top + 230
                         pyautogui.click(btn_x, btn_y)
                         time.sleep(0.3)
                         return True
