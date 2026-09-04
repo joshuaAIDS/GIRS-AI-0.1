@@ -106,10 +106,23 @@
   <!-- ═══════════════════ NATIVE WEBGL 3D ORB CANVAS ═══════════════════ -->
   <canvas id="webglCanvas"></canvas>
 
-  <!-- Drag Hint Notification -->
-  <div class="drag-hint fixed bottom-20 right-6 z-20 hud-interactive px-4 py-2 rounded-full bg-slate-950/80 border border-slate-700/60 text-xs text-slate-300 font-mono flex items-center gap-2.5 backdrop-blur-md shadow-2xl">
+  <!-- 3D Orb Interactive Floating Zoom Widget -->
+  <div id="zoomControls" class="fixed right-6 bottom-24 z-30 hud-interactive flex flex-col items-center gap-1.5 p-1.5 rounded-2xl bg-slate-950/75 border border-slate-700/60 backdrop-blur-xl shadow-2xl transition-all hover:border-blue-500/60 select-none">
+    <button id="zoomInBtn" title="Zoom In (Scroll Up or +)" class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow active:scale-90">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/></svg>
+    </button>
+    <button id="zoomResetBtn" title="Double-click orb or click here to reset zoom" class="px-1.5 py-1 rounded-lg hover:bg-slate-800 text-[10px] font-mono font-medium text-slate-400 hover:text-blue-400 transition-all select-none">
+      <span id="zoomPercent">100%</span>
+    </button>
+    <button id="zoomOutBtn" title="Zoom Out (Scroll Down or -)" class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow active:scale-90">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M20 12H4"/></svg>
+    </button>
+  </div>
+
+  <!-- Drag & Zoom Hint Notification -->
+  <div class="drag-hint fixed bottom-10 right-6 z-20 hud-interactive px-3.5 py-1.5 rounded-full bg-slate-950/80 border border-slate-700/60 text-[11px] text-slate-300 font-mono flex items-center gap-2 backdrop-blur-md shadow-2xl">
     <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
-    <span>✨ Drag to rotate 3D Orb</span>
+    <span>✨ Drag to rotate • Scroll to Zoom</span>
   </div>
 
   <!-- ═══════════════════ FLOATING HUD INTERFACE ═══════════════════ -->
@@ -896,12 +909,51 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
     gl.bufferData(gl.ARRAY_BUFFER, starPositions, gl.STATIC_DRAW);
 
-    // Interactive Drag Rotation
+    // ═══════════════════ INTERACTIVE ZOOM & ROTATION SYSTEM ═══════════════════
     let rotX = 0;
     let rotY = 0;
     let isDragging = false;
     let lastMouseX = 0;
     let lastMouseY = 0;
+
+    let zoomScale = 1.0;
+    let targetZoom = 1.0;
+    const MIN_ZOOM = 0.35;  // Miniature compact core
+    const MAX_ZOOM = 2.80;  // Colossal screen-filling plasma sun
+
+    function setZoom(val, instant = false) {
+      targetZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, val));
+      if (instant) zoomScale = targetZoom;
+      updateZoomUI();
+    }
+
+    function updateZoomUI() {
+      const el = document.getElementById('zoomPercent');
+      if (el) el.textContent = `${Math.round(targetZoom * 100)}%`;
+    }
+
+    // Floating Zoom Button Handlers
+    document.getElementById('zoomInBtn')?.addEventListener('click', () => setZoom(targetZoom + 0.2));
+    document.getElementById('zoomOutBtn')?.addEventListener('click', () => setZoom(targetZoom - 0.2));
+    document.getElementById('zoomResetBtn')?.addEventListener('click', () => setZoom(1.0));
+
+    // Mouse Wheel Zoom Listener
+    window.addEventListener('wheel', (e) => {
+      // Don't zoom orb if scrolling inside chat bubbles or other scrollable panels
+      if (e.target.closest('#chatMessages, #notesContainer, .overflow-y-auto')) {
+        return;
+      }
+      e.preventDefault();
+      const zoomDelta = e.deltaY < 0 ? 0.12 : -0.12;
+      setZoom(targetZoom + zoomDelta);
+    }, { passive: false });
+
+    // Double-click on background or orb to reset zoom
+    window.addEventListener('dblclick', (e) => {
+      if (!e.target.closest('.hud-interactive') || e.target.id === 'webglCanvas') {
+        setZoom(1.0);
+      }
+    });
 
     window.addEventListener('mousedown', (e) => {
       if (!e.target.closest('.hud-interactive')) {
@@ -923,23 +975,60 @@
 
     window.addEventListener('mouseup', () => { isDragging = false; });
 
+    // Touch & Trackpad Pinch-To-Zoom + Single Touch Drag
+    let initialPinchDistance = null;
+    let initialPinchZoom = 1.0;
+
     window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1 && !e.target.closest('.hud-interactive')) {
+      if (e.touches.length === 2) {
+        initialPinchDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialPinchZoom = targetZoom;
+      } else if (e.touches.length === 1 && !e.target.closest('.hud-interactive')) {
         isDragging = true;
         lastMouseX = e.touches[0].clientX;
         lastMouseY = e.touches[0].clientY;
       }
-    });
+    }, { passive: true });
+
     window.addEventListener('touchmove', (e) => {
-      if (!isDragging || e.touches.length !== 1) return;
-      const dx = e.touches[0].clientX - lastMouseX;
-      const dy = e.touches[0].clientY - lastMouseY;
-      rotY += dx * 0.005;
-      rotX += dy * 0.005;
-      lastMouseX = e.touches[0].clientX;
-      lastMouseY = e.touches[0].clientY;
+      if (e.touches.length === 2 && initialPinchDistance) {
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const ratio = currentDist / initialPinchDistance;
+        setZoom(initialPinchZoom * ratio);
+      } else if (isDragging && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - lastMouseX;
+        const dy = e.touches[0].clientY - lastMouseY;
+        rotY += dx * 0.005;
+        rotX += dy * 0.005;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) initialPinchDistance = null;
+      if (e.touches.length === 0) isDragging = false;
     });
-    window.addEventListener('touchend', () => { isDragging = false; });
+
+    // Keyboard Shortcuts (+, -, 0) when not typing in text fields
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        return;
+      }
+      if (e.key === '+' || e.key === '=') {
+        setZoom(targetZoom + 0.15);
+      } else if (e.key === '-' || e.key === '_') {
+        setZoom(targetZoom - 0.15);
+      } else if (e.key === '0') {
+        setZoom(1.0);
+      }
+    });
 
     // ═══════════════════ RENDER LOOP ═══════════════════
     let pulseTime = 0;
@@ -1007,12 +1096,16 @@
         ringAngle3 += 0.005;
       }
 
+      // Smooth Zoom Interpolation (Lerp)
+      zoomScale += (targetZoom - zoomScale) * 0.12;
+      const finalScale = scaleAnim * zoomScale;
+
       // Base Scene ModelView Matrix
       let baseMV = mat4Identity();
       baseMV = mat4Translate(baseMV, 0, 0, -11.5);
       baseMV = mat4RotateX(baseMV, rotX);
       baseMV = mat4RotateY(baseMV, rotY);
-      baseMV = mat4Scale(baseMV, scaleAnim, scaleAnim, scaleAnim);
+      baseMV = mat4Scale(baseMV, finalScale, finalScale, finalScale);
 
       // 1. Draw Starfield
       gl.useProgram(starsProg);
