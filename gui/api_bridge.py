@@ -14,6 +14,13 @@ class DesktopApiBridge:
     def __init__(self, assistant: IGIRSAssistant, window=None):
         self._assistant = assistant
         self._window = window
+        # Hook barge-in event to GUI voice state
+        self._assistant.tts.set_on_barge_in(self._on_barge_in_fired)
+
+    def _on_barge_in_fired(self):
+        """Called immediately when user speaks over assistant speech."""
+        logger.info("Bridge: Voice Barge-In triggered, transitioning GUI to listening.")
+        self.notify_state("listening")
 
     def set_window(self, window):
         self._window = window
@@ -138,14 +145,17 @@ class DesktopApiBridge:
         return True
 
     def get_voice_settings(self) -> Dict[str, Any]:
-        """Returns active voice settings."""
+        """Returns active voice settings including barge-in and audio cues."""
         tts = self._assistant.tts
+        import utils.audio_cues as audio_cues
         return {
             "enabled": tts.enabled,
             "volume": tts.volume,
             "rate": tts.rate,
             "english_voice": tts.english_voice,
             "tamil_voice": tts.tamil_voice,
+            "barge_in": tts.is_barge_in_enabled(),
+            "audio_cues": audio_cues.is_cues_enabled(),
             "available_voices": tts.list_voices()
         }
 
@@ -162,11 +172,30 @@ class DesktopApiBridge:
             tts.set_voice(settings["english_voice"])
         if "tamil_voice" in settings:
             tts.set_voice(settings["tamil_voice"])
+        if "barge_in" in settings:
+            tts.set_barge_in_enabled(bool(settings["barge_in"]))
+        if "audio_cues" in settings:
+            import utils.audio_cues as audio_cues
+            audio_cues.set_cues_enabled(bool(settings["audio_cues"]))
         return True
+
+    def toggle_barge_in(self) -> bool:
+        """Toggles voice barge-in on/off."""
+        tts = self._assistant.tts
+        new_val = not tts.is_barge_in_enabled()
+        tts.set_barge_in_enabled(new_val)
+        return new_val
+
+    def toggle_audio_cues(self) -> bool:
+        """Toggles procedural audio cues on/off."""
+        import utils.audio_cues as audio_cues
+        new_val = not audio_cues.is_cues_enabled()
+        audio_cues.set_cues_enabled(new_val)
+        return new_val
 
     def stop_speech(self) -> bool:
         """Halts active audio playback."""
-        self._assistant.tts.stop()
+        self._assistant.tts.stop(play_cue=True)
         self.notify_state("standby")
         return True
 

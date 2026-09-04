@@ -1,1 +1,150 @@
-[]
+[
+  {
+    "role": "user",
+    "content": "set the volume to 30%"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-133de0b3a8b14474819fd699553e1d06",
+        "type": "function",
+        "function": {
+          "name": "set_volume",
+          "arguments": "{\"level_percent\": 30}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-133de0b3a8b14474819fd699553e1d06",
+    "name": "set_volume",
+    "content": "{\"success\": true, \"volume_percent\": 30, \"message\": \"System volume set to 30%.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "Volume's set to 30% for you!"
+  },
+  {
+    "role": "user",
+    "content": "Set the brightness to 25"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-72405790426d472b9db5b8da102b9f03",
+        "type": "function",
+        "function": {
+          "name": "set_brightness",
+          "arguments": "{\"level_percent\": 25}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-72405790426d472b9db5b8da102b9f03",
+    "name": "set_brightness",
+    "content": "{\"success\": true, \"brightness_percent\": 25, \"message\": \"Screen brightness adjusted to 25%.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "Screen brightness dialed to 25%."
+  },
+  {
+    "role": "user",
+    "content": "volume to 100%"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-d2f56dff9b6b431abf4d5b0648e37306",
+        "type": "function",
+        "function": {
+          "name": "set_volume",
+          "arguments": "{\"level_percent\": 100}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-d2f56dff9b6b431abf4d5b0648e37306",
+    "name": "set_volume",
+    "content": "{\"success\": true, \"volume_percent\": 100, \"message\": \"System volume set to 100%.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "Volume's set to 100% for you!"
+  },
+  {
+    "role": "user",
+    "content": "Set the brightness to 100%"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-aeff73ae80e6441eb590340d148a2af5",
+        "type": "function",
+        "function": {
+          "name": "set_brightness",
+          "arguments": "{\"level_percent\": 100}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-aeff73ae80e6441eb590340d148a2af5",
+    "name": "set_brightness",
+    "content": "{\"success\": true, \"brightness_percent\": 100, \"message\": \"Screen brightness adjusted to 100%.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "Screen brightness dialed to 100%."
+  },
+  {
+    "role": "user",
+    "content": "Show desktop"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-0ce0cc9a98844664bcab0a26ea1c9159",
+        "type": "function",
+        "function": {
+          "name": "minimize_all_windows",
+          "arguments": "{}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-0ce0cc9a98844664bcab0a26ea1c9159",
+    "name": "minimize_all_windows",
+    "content": "{\"success\": true, \"message\": \"All windows minimized to desktop.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "Desktop's now showing, Joshua!"
+  },
+  {
+    "role": "user",
+    "content": "stop listening"
+  },
+  {
+    "role": "assistant",
+    "content": "I've stopped listening, Joshua. Tap the mic or continuous voice whenever you need me!"
+  }
+]

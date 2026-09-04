@@ -1401,16 +1401,16 @@
                 break;
               }
 
-              // Maintain animated speaking state while TTS plays
-              await new Promise(r => setTimeout(r, 400));
+              // Maintain animated speaking state while TTS plays (barge-in interrupts instantly)
+              await new Promise(r => setTimeout(r, 200));
               while (isAlwaysListening && await window.pywebview.api.is_speaking()) {
-                await new Promise(r => setTimeout(r, 120));
+                await new Promise(r => setTimeout(r, 60));
               }
-              // Prevent mic from catching room speaker echo
-              await new Promise(r => setTimeout(r, 600));
+              // Fast echo recovery pause
+              await new Promise(r => setTimeout(r, 200));
             } else {
               // Silence or timeout: brief wait and continue listening
-              await new Promise(r => setTimeout(r, 250));
+              await new Promise(r => setTimeout(r, 150));
             }
           } else {
             // Standalone browser preview

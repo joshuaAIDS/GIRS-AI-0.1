@@ -114,13 +114,39 @@ class TTSEngine:
     def is_speaking(self) -> bool:
         return self.player.is_playing()
 
-    def stop(self):
+    def set_barge_in_enabled(self, enabled: bool):
+        """Enables or disables voice barge-in interrupt."""
+        if self.player.barge_in:
+            self.player.barge_in.set_enabled(enabled)
+
+    def is_barge_in_enabled(self) -> bool:
+        return bool(self.player.barge_in and self.player.barge_in.enabled)
+
+    def set_on_barge_in(self, callback: Callable[[], None]):
+        """Sets external handler fired when barge-in interrupts speech."""
+        self.player.on_barge_in = callback
+
+    def set_cues_enabled(self, enabled: bool):
+        """Enables or disables procedural audio cues."""
+        try:
+            import utils.audio_cues as audio_cues
+            audio_cues.set_cues_enabled(enabled)
+        except Exception:
+            pass
+
+    def stop(self, play_cue: bool = False):
         """Instantly stops speech."""
         self.player.stop()
+        if play_cue:
+            try:
+                import utils.audio_cues as audio_cues
+                audio_cues.play_stop_cue()
+            except Exception:
+                pass
 
     def speak(self, text: str, blocking: bool = False, on_complete: Optional[Callable] = None):
         """
-        Synthesizes text and plays audio asynchronously.
+        Synthesizes text and plays audio asynchronously with Voice Barge-In armed.
         """
         if not self.enabled or not text or not text.strip():
             return

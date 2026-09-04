@@ -194,13 +194,13 @@ def run_continuous_voice_mode(assistant: IGIRSAssistant):
             voice_tag = f" {C_PURPLE}🔊 Speaking...{C_RESET}" if assistant.tts.enabled else ""
             print(f"{C_CYAN}{C_BOLD}IGIRS AI:{C_RESET}{voice_tag} {reply}\n")
 
-            # Wait for speech playback to start and finish completely before listening again
-            time.sleep(0.3)
+            # Wait for speech playback while barge-in monitor is armed
+            time.sleep(0.12)
             while assistant.tts.is_speaking():
-                time.sleep(0.1)
+                time.sleep(0.05)
 
-            # Echo prevention pause
-            time.sleep(0.5)
+            # Ultra-short echo prevention pause
+            time.sleep(0.2)
 
         except KeyboardInterrupt:
             assistant.tts.stop()

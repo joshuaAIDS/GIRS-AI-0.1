@@ -25,8 +25,9 @@ class VoiceListener:
                 self.recognizer = sr.Recognizer()
                 self.recognizer.energy_threshold = energy_threshold
                 self.recognizer.dynamic_energy_threshold = dynamic_energy
-                self.recognizer.pause_threshold = 0.8
-                self.recognizer.non_speaking_duration = 0.5
+                # Low-latency speech cut-off: 450ms silence triggers transcription
+                self.recognizer.pause_threshold = 0.45
+                self.recognizer.non_speaking_duration = 0.25
             except Exception:
                 self.recognizer = None
                 self.is_available = False
@@ -34,8 +35,8 @@ class VoiceListener:
             self.recognizer = None
         self._mic_calibrated = False
 
-    def calibrate_microphone(self, duration: float = 0.8):
-        """Calibrates recognizer to background room noise."""
+    def calibrate_microphone(self, duration: float = 0.4):
+        """Calibrates recognizer to background room noise quickly."""
         if not self.is_available or not self.recognizer:
             return
         try:
@@ -52,10 +53,11 @@ class VoiceListener:
         phrase_time_limit: int = 15,
         language: str = "en-IN",
         on_listening: Optional[Callable[[], None]] = None,
-        on_transcribing: Optional[Callable[[], None]] = None
+        on_transcribing: Optional[Callable[[], None]] = None,
+        play_cues: bool = True
     ) -> Optional[str]:
         """
-        Listens to the microphone and transcribes speech into text.
+        Listens to the microphone with sub-second latency and transcribes speech into text.
         """
         if not self.is_available or not self.recognizer:
             logger.warning("Speech recognition is not available in current environment.")
@@ -64,8 +66,15 @@ class VoiceListener:
         try:
             with sr.Microphone() as source:
                 if not self._mic_calibrated:
-                    self.recognizer.adjust_for_ambient_noise(source, duration=0.6)
+                    self.recognizer.adjust_for_ambient_noise(source, duration=0.35)
                     self._mic_calibrated = True
+
+                if play_cues:
+                    try:
+                        import utils.audio_cues as audio_cues
+                        audio_cues.play_listening_cue()
+                    except Exception:
+                        pass
 
                 if on_listening:
                     on_listening()
@@ -76,6 +85,13 @@ class VoiceListener:
                     timeout=timeout,
                     phrase_time_limit=phrase_time_limit
                 )
+
+                if play_cues:
+                    try:
+                        import utils.audio_cues as audio_cues
+                        audio_cues.play_thinking_cue()
+                    except Exception:
+                        pass
 
                 if on_transcribing:
                     on_transcribing()
