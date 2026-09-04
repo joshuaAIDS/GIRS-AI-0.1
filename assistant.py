@@ -169,6 +169,25 @@ class IGIRSAssistant:
         if re.search(r"\b(weather|temperature|forecast|is it raining|will it rain|how hot|how cold)\b", text):
             selected_tool_names.add("get_live_weather")
 
+        # --- Phase 5: Document Intelligence & Knowledge Vault ---
+        doc_triggers = [
+            "resume", "cv", "curriculum vitae", "lecture notes", "course notes", "study notes",
+            "syllabus", "in the pdf", "pdf document", "in the document", "document says",
+            "read document", "my files", "knowledge vault", "code file", "source code",
+            "in the code", "explain this file", "what does the file say", "summarize the document",
+            "summarize my resume", "summarize notes"
+        ]
+        if any(w in text for w in doc_triggers) or (
+            re.search(r"\b(pdf|document|resume|lecture|notes|chapter)\b", text)
+            and any(w in text for w in ["what", "how", "summarize", "read", "explain", "find", "who", "tell me"])
+        ):
+            selected_tool_names.add("query_documents")
+            if "summarize" in text or "overview" in text:
+                selected_tool_names.add("summarize_document")
+
+        if any(w in text for w in ["list documents", "my documents", "show files", "what documents", "show documents"]):
+            selected_tool_names.add("list_indexed_documents")
+
         if not selected_tool_names:
             return None
 
@@ -258,9 +277,16 @@ class IGIRSAssistant:
                 # Add tool result to conversation history
                 self.memory.add_tool_response(call_id, fn_name, tool_output)
 
-            # If the only tool called was analyze_screen, the vision output is already the final complete analysis
-            if len(tool_calls) == 1 and tool_calls[0].get("function", {}).get("name") == "analyze_screen":
+            # If the only tool called was analyze_screen, query_documents, or summarize_document, output is already complete
+            if len(tool_calls) == 1 and tool_calls[0].get("function", {}).get("name") in ["analyze_screen", "query_documents", "summarize_document"]:
                 final_content = tool_output
+                try:
+                    parsed_res = json.loads(tool_output)
+                    if isinstance(parsed_res, dict):
+                        final_content = parsed_res.get("answer") or parsed_res.get("summary") or tool_output
+                except Exception:
+                    pass
+
                 self.memory.add_assistant_message(final_content)
                 if speak_response:
                     paragraphs = [p for p in final_content.split("\n\n") if p.strip()]

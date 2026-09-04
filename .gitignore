@@ -35,3 +35,8 @@ out.log
 Thumbs.db
 .vscode/
 .idea/
+
+# Document storage & test files
+data_documents/
+knowledge_store.json
+scratch/test_docs/

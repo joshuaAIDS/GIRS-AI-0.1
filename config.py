@@ -9,6 +9,9 @@ TEMP_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 FACTS_FILE = BASE_DIR / "facts_store.json"
 MEMORY_FILE = BASE_DIR / "memory_store.json"
 NOTES_FILE = BASE_DIR / "notes_store.json"
+KNOWLEDGE_STORE_FILE = BASE_DIR / "knowledge_store.json"
+DOCUMENTS_DIR = BASE_DIR / "data_documents"
+DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
 API_KEYS_FILE = BASE_DIR / "IGIRS AI (API KEYS).txt"
 
 # Load NVIDIA API Keys (Multi-key support with auto-rotation)

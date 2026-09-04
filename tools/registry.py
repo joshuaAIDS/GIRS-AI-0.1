@@ -20,9 +20,18 @@ class ToolRegistry:
         self.memory_manager = memory_manager
         self.llm_client = llm_client
         self.tts_engine = tts_engine
+        self.doc_engine = None
         self.tools: Dict[str, Dict[str, Any]] = {}
         self.handlers: Dict[str, Callable] = {}
         self._register_default_tools()
+
+    @property
+    def documents(self):
+        """Lazy-loaded DocumentEngine instance."""
+        if self.doc_engine is None:
+            from tools.document_engine import DocumentEngine
+            self.doc_engine = DocumentEngine()
+        return self.doc_engine
 
     def register(self, name: str, description: str, parameters: Dict[str, Any], handler: Callable):
         """Registers a function tool and its execution handler."""
@@ -450,6 +459,75 @@ class ToolRegistry:
             handler=self._tool_control_media
         )
 
+        # 25. Documents: Query Knowledge Vault (PDFs, Notes, Resumes, Code)
+        self.register(
+            name="query_documents",
+            description="Search, query, and answer questions across local PDFs, lecture notes, resumes, study materials, or code files indexed in the Knowledge Vault. Call when the user asks questions about their files, resume, coursework, or code logic.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The question to answer using the indexed documents."
+                    },
+                    "doc_name": {
+                        "type": "string",
+                        "description": "Optional name or keyword of a specific document to restrict search to."
+                    }
+                },
+                "required": ["query"]
+            },
+            handler=self._tool_query_documents
+        )
+
+        # 26. Documents: Summarize Document
+        self.register(
+            name="summarize_document",
+            description="Generate a comprehensive executive summary of an indexed PDF, resume, lecture note, or code file. Call when user asks 'summarize this document', 'give an overview of my resume', 'summarize chapter 2'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "doc_name": {
+                        "type": "string",
+                        "description": "Optional name or keyword of the document to summarize. If omitted, summarizes the most recent file."
+                    },
+                    "focus": {
+                        "type": "string",
+                        "description": "Optional specific topic or area of interest to focus the summary on."
+                    }
+                }
+            },
+            handler=self._tool_summarize_document
+        )
+
+        # 27. Documents: List Indexed Files
+        self.register(
+            name="list_indexed_documents",
+            description="List all local documents, PDFs, lecture notes, resumes, and code files currently indexed in the Knowledge Vault.",
+            parameters={
+                "type": "object",
+                "properties": {}
+            },
+            handler=self._tool_list_indexed_documents
+        )
+
+        # 28. Documents: Index Local File
+        self.register(
+            name="index_local_file",
+            description="Ingest and index a local file path from disk (PDF, DOCX, Python, JS, Markdown, text) into the Knowledge Vault for conversational Q&A.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Absolute or relative file path to the local document or code file."
+                    }
+                },
+                "required": ["file_path"]
+            },
+            handler=self._tool_index_local_file
+        )
+
     # ------------------ TOOL IMPLEMENTATIONS ------------------
 
     def _tool_system_telemetry(self, **kwargs) -> Dict[str, Any]:
@@ -795,4 +873,44 @@ class ToolRegistry:
         """Controls global Windows media playback."""
         import tools.media_controls as media_controls
         return media_controls.control_media(action=action)
+
+    # --- Phase 5: Document Intelligence & Knowledge Vault Handlers ---
+
+    def _tool_query_documents(self, query: str, doc_name: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        """Answers a question using local indexed documents."""
+        target_id = None
+        if doc_name:
+            dn_lower = doc_name.lower()
+            for did, d in self.documents.documents.items():
+                if dn_lower in d.get("filename", "").lower() or dn_lower in did:
+                    target_id = did
+                    break
+        return self.documents.answer_query(query=query, doc_id=target_id, llm_client=self.llm_client)
+
+    def _tool_summarize_document(self, doc_name: Optional[str] = None, focus: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        """Summarizes an indexed document."""
+        target_id = None
+        if doc_name:
+            dn_lower = doc_name.lower()
+            for did, d in self.documents.documents.items():
+                if dn_lower in d.get("filename", "").lower() or dn_lower in did:
+                    target_id = did
+                    break
+        return self.documents.summarize_document(doc_id=target_id, focus=focus, llm_client=self.llm_client)
+
+    def _tool_list_indexed_documents(self, **kwargs) -> Dict[str, Any]:
+        """Lists all indexed files in the Knowledge Vault."""
+        docs = self.documents.list_documents()
+        return {
+            "status": "success",
+            "count": len(docs),
+            "documents": docs
+        }
+
+    def _tool_index_local_file(self, file_path: str, **kwargs) -> Dict[str, Any]:
+        """Ingests a file from local disk."""
+        p = Path(file_path.strip().strip('"').strip("'"))
+        if not p.exists() or not p.is_file():
+            return {"status": "error", "message": f"File does not exist: {file_path}"}
+        return self.documents.ingest_file(source=p, filename=p.name)
 

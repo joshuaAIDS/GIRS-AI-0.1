@@ -358,3 +358,112 @@ class DesktopApiBridge:
                 "analysis": f"Image analysis encountered an error: {e}",
                 "preview_base64": image_base64
             }
+
+    # --- Phase 5: Knowledge Vault & Document Intelligence Bridge ---
+
+    def ingest_document(self, base64_data: str, filename: str) -> Dict[str, Any]:
+        """
+        Ingests and indexes a local document (PDF, DOCX, Code, Text, Resume) into the Knowledge Vault.
+        """
+        try:
+            raw_b64 = base64_data
+            if "base64," in raw_b64:
+                raw_b64 = raw_b64.split("base64,")[1]
+            file_bytes = base64.b64decode(raw_b64)
+
+            result = self._assistant.tools.documents.ingest_file(
+                source=file_bytes,
+                filename=filename,
+                save_copy=True
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Bridge document ingestion error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_documents(self) -> List[Dict[str, Any]]:
+        """Returns list of indexed documents in the Knowledge Vault."""
+        try:
+            return self._assistant.tools.documents.list_documents()
+        except Exception as e:
+            logger.error(f"Bridge get_documents error: {e}")
+            return []
+
+    def delete_document(self, doc_id: str) -> Dict[str, Any]:
+        """Removes a document from the Knowledge Vault."""
+        try:
+            success = self._assistant.tools.documents.delete_document(doc_id)
+            return {"status": "success" if success else "not_found", "doc_id": doc_id}
+        except Exception as e:
+            logger.error(f"Bridge delete_document error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def query_document(
+        self,
+        query: str,
+        doc_id: Optional[str] = None,
+        speak_response: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Queries indexed documents using local RAG.
+        """
+        self.notify_state("thinking")
+        try:
+            result = self._assistant.tools.documents.answer_query(
+                query=query,
+                doc_id=doc_id,
+                llm_client=self._assistant.llm
+            )
+
+            answer = result.get("answer", "")
+            if speak_response and self._assistant.tts.enabled and answer:
+                paragraphs = [p for p in answer.split("\n\n") if p.strip()]
+                first_para = paragraphs[0] if paragraphs else answer
+                spoken = first_para.replace("*", "").replace("#", "").strip()
+                if len(spoken) > 280:
+                    spoken = spoken[:280] + "..."
+                self._assistant.tts.speak(spoken)
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+
+            return result
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge query_document error: {e}")
+            return {"status": "error", "answer": f"Error querying documents: {e}", "citations": []}
+
+    def summarize_document(
+        self,
+        doc_id: Optional[str] = None,
+        focus: Optional[str] = None,
+        speak_response: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Generates an executive summary of an indexed document.
+        """
+        self.notify_state("thinking")
+        try:
+            result = self._assistant.tools.documents.summarize_document(
+                doc_id=doc_id,
+                focus=focus,
+                llm_client=self._assistant.llm
+            )
+
+            summary = result.get("summary", "")
+            if speak_response and self._assistant.tts.enabled and summary:
+                paragraphs = [p for p in summary.split("\n\n") if p.strip()]
+                first_para = paragraphs[0] if paragraphs else summary
+                spoken = first_para.replace("*", "").replace("#", "").strip()
+                if len(spoken) > 280:
+                    spoken = spoken[:280] + "..."
+                self._assistant.tts.speak(spoken)
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+
+            return result
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge summarize_document error: {e}")
+            return {"status": "error", "summary": f"Failed to summarize document: {e}"}

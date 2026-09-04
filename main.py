@@ -66,6 +66,11 @@ def print_help():
   {C_PURPLE}{C_BOLD}[System & Assistant Tools]{C_RESET}
   {C_CYAN}/screen [question]{C_RESET}     - Multimodal Screen Vision: inspect/explain your screen
   {C_CYAN}/screen window [q]{C_RESET}     - Multimodal Vision: inspect only the active foreground window
+  {C_CYAN}/doc load <path>{C_RESET}        - Ingest local PDF, resume, notes, or code into Knowledge Vault
+  {C_CYAN}/doc ask <question>{C_RESET}     - Search & answer questions from indexed documents
+  {C_CYAN}/doc summary [file]{C_RESET}     - Generate structured executive summary of a document
+  {C_CYAN}/doc list{C_RESET}               - List all documents indexed in the Knowledge Vault
+  {C_CYAN}/doc clear{C_RESET}              - Clear all documents from Knowledge Vault
   {C_CYAN}/play <media title>{C_RESET}    - Search & play music on YouTube or Spotify
   {C_CYAN}/briefing{C_RESET}              - Daily morning briefing (weather, time, battery, reminders)
   {C_CYAN}/telemetry{C_RESET}             - Inspect computer CPU, RAM, and Battery status
@@ -312,6 +317,89 @@ def handle_slash_command(command: str, assistant: IGIRSAssistant) -> bool:
                 spoken = spoken[:280] + "..."
             assistant.tts.speak(spoken)
         return True
+
+    elif action in ("/doc", "/docs"):
+        parts = arg.strip().split(maxsplit=1)
+        sub = parts[0].lower() if parts else ""
+        sub_arg = parts[1] if len(parts) > 1 else ""
+
+        if not sub or sub == "list":
+            docs = assistant.tools.documents.list_documents()
+            print(f"\n{C_PURPLE}{C_BOLD}📚 Knowledge Vault Documents ({len(docs)}):{C_RESET}")
+            if not docs:
+                print("  (No documents indexed yet. Use /doc load <file_path>)")
+            for d in docs:
+                cat = d.get('category', 'doc').upper()
+                print(f"  • {C_CYAN}[{cat}]{C_RESET} {C_BOLD}{d.get('filename')}{C_RESET} — {d.get('total_pages')} pages, {d.get('total_words')} words (ID: {d.get('id')})")
+            print()
+            return True
+
+        elif sub in ("load", "add", "ingest"):
+            if not sub_arg:
+                print(f"{C_RED}Usage: /doc load <path/to/file.pdf or .py or .docx>{C_RESET}")
+            else:
+                p = Path(sub_arg.strip('"').strip("'"))
+                if not p.exists():
+                    print(f"{C_RED}File not found: {p}{C_RESET}")
+                else:
+                    print(f"{C_YELLOW}📄 Ingesting and indexing '{p.name}'...{C_RESET}")
+                    res = assistant.tools.documents.ingest_file(source=p, filename=p.name)
+                    if res.get("status") == "success":
+                        print(f"{C_GREEN}✔ Successfully indexed {p.name}! ({res.get('total_pages')} pages, {res.get('total_chunks')} chunks){C_RESET}")
+                    else:
+                        print(f"{C_RED}Failed: {res.get('message')}{C_RESET}")
+            return True
+
+        elif sub in ("ask", "query"):
+            if not sub_arg:
+                print(f"{C_RED}Usage: /doc ask <your question about the documents>{C_RESET}")
+            else:
+                print(f"{C_YELLOW}🔍 Searching Knowledge Vault with local RAG...{C_RESET}")
+                res = assistant.tools.documents.answer_query(query=sub_arg, llm_client=assistant.llm)
+                print(f"\n{C_CYAN}{C_BOLD}IGIRS Document Intelligence:{C_RESET}\n{res.get('answer')}\n")
+                if res.get("citations"):
+                    sources = ", ".join(f"{c['filename']} [{c['page']}]" for c in res["citations"])
+                    print(f"{C_DIM}Sources: {sources}{C_RESET}\n")
+                if assistant.tts.enabled:
+                    paragraphs = [p for p in res.get('answer', '').split("\n\n") if p.strip()]
+                    spoken = paragraphs[0].replace("*", "").replace("#", "").strip() if paragraphs else res.get('answer', '')
+                    if len(spoken) > 280:
+                        spoken = spoken[:280] + "..."
+                    assistant.tts.speak(spoken)
+            return True
+
+        elif sub in ("summary", "summarize"):
+            print(f"{C_YELLOW}📑 Generating document summary...{C_RESET}")
+            res = assistant.tools.documents.summarize_document(focus=sub_arg if sub_arg else None, llm_client=assistant.llm)
+            print(f"\n{C_CYAN}{C_BOLD}Document Summary:{C_RESET}\n{res.get('summary')}\n")
+            if assistant.tts.enabled:
+                paragraphs = [p for p in res.get('summary', '').split("\n\n") if p.strip()]
+                spoken = paragraphs[0].replace("*", "").replace("#", "").strip() if paragraphs else res.get('summary', '')
+                if len(spoken) > 280:
+                    spoken = spoken[:280] + "..."
+                assistant.tts.speak(spoken)
+            return True
+
+        elif sub == "clear":
+            assistant.tools.documents.clear_all()
+            print(f"{C_GREEN}✔ Knowledge Vault cleared.{C_RESET}")
+            return True
+
+        else:
+            query_text = arg
+            print(f"{C_YELLOW}🔍 Searching Knowledge Vault with local RAG...{C_RESET}")
+            res = assistant.tools.documents.answer_query(query=query_text, llm_client=assistant.llm)
+            print(f"\n{C_CYAN}{C_BOLD}IGIRS Document Intelligence:{C_RESET}\n{res.get('answer')}\n")
+            if res.get("citations"):
+                sources = ", ".join(f"{c['filename']} [{c['page']}]" for c in res["citations"])
+                print(f"{C_DIM}Sources: {sources}{C_RESET}\n")
+            if assistant.tts.enabled:
+                paragraphs = [p for p in res.get('answer', '').split("\n\n") if p.strip()]
+                spoken = paragraphs[0].replace("*", "").replace("#", "").strip() if paragraphs else res.get('answer', '')
+                if len(spoken) > 280:
+                    spoken = spoken[:280] + "..."
+                assistant.tts.speak(spoken)
+            return True
 
     elif action in ("/play", "/music"):
         if not arg:
