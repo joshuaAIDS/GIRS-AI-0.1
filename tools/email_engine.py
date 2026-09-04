@@ -27,7 +27,8 @@ from tools.window_utils import (
     find_window_by_keywords,
     bring_window_to_foreground,
     simulate_mail_send,
-    simulate_outlook_alt_s
+    simulate_outlook_alt_s,
+    click_outlook_send_button
 )
 
 logger = logging.getLogger("IGIRS.EmailEngine")
@@ -228,10 +229,14 @@ class EmailEngine:
                         logger.info(f"⚡ Hands-Free Email: Auto-send Ctrl+Enter triggered (Attempt {attempt}/3) on hwnd {hwnd}.")
 
                         # If attempt 2, also try Alt + S for classic Outlook
-                        if attempt == 2:
+                        if attempt >= 2:
                             time.sleep(0.3)
                             simulate_outlook_alt_s()
                             logger.info(f"⚡ Hands-Free Email: Alt+S fallback triggered (Attempt {attempt}/3).")
+
+                        # Click blue Send button fallback
+                        time.sleep(0.3)
+                        click_outlook_send_button(hwnd)
                     else:
                         logger.debug(f"Mail client window not found on attempt {attempt}")
                 except Exception as e:

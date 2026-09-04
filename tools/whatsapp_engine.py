@@ -14,7 +14,12 @@ import urllib.parse
 from typing import Dict, Any, Optional
 from pathlib import Path
 from tools.contacts_manager import ContactsManager
-from tools.window_utils import find_window_by_keywords, bring_window_to_foreground, simulate_enter
+from tools.window_utils import (
+    find_window_by_keywords,
+    bring_window_to_foreground,
+    simulate_enter,
+    click_whatsapp_send_button
+)
 
 logger = logging.getLogger("IGIRS.WhatsAppEngine")
 
@@ -25,8 +30,9 @@ class WhatsAppEngine:
 
     def _simulate_enter_press(self, delay: float = 3.0, is_web: bool = False):
         """
-        Multi-stage automated window focus and Enter dispatch for WhatsApp.
-        Finds WhatsApp Desktop or Browser window, brings it to foreground, and simulates Enter.
+        Multi-stage automated window focus and dual-dispatch (Enter + Send Button Click) for WhatsApp.
+        Finds WhatsApp Desktop or Browser window, brings it to foreground, presses Enter,
+        and clicks the green Send button if focus was outside the input field.
         Runs safely in a separate daemon thread so it never blocks the main assistant event loop.
         """
         def _worker():
@@ -42,16 +48,23 @@ class WhatsAppEngine:
                     hwnd = find_window_by_keywords(title_kws, proc_kws)
                     if hwnd:
                         bring_window_to_foreground(hwnd)
-                        time.sleep(0.2)
+                        time.sleep(0.25)
+                        # 1. Primary: Press Enter
                         simulate_enter()
                         logger.info(f"⚡ Hands-Free WhatsApp: Auto-send ENTER triggered (Attempt {attempt}/3) on hwnd {hwnd}.")
+                        time.sleep(0.3)
+
+                        # 2. Secondary: Click green send button if input field was not focused
+                        clicked = click_whatsapp_send_button(hwnd)
+                        if clicked:
+                            logger.info(f"⚡ Hands-Free WhatsApp: Green Send button clicked (Attempt {attempt}/3).")
                     else:
                         logger.debug(f"WhatsApp window not found on attempt {attempt}")
                 except Exception as e:
                     logger.debug(f"WhatsApp auto-send error on attempt {attempt}: {e}")
 
                 if attempt < 3:
-                    time.sleep(1.8)
+                    time.sleep(1.5)
 
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
