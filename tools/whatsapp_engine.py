@@ -14,38 +14,44 @@ import urllib.parse
 from typing import Dict, Any, Optional
 from pathlib import Path
 from tools.contacts_manager import ContactsManager
+from tools.window_utils import find_window_by_keywords, bring_window_to_foreground, simulate_enter
 
 logger = logging.getLogger("IGIRS.WhatsAppEngine")
-
-VK_RETURN = 0x0D
-KEYEVENTF_KEYUP = 0x0002
 
 class WhatsAppEngine:
     def __init__(self, contacts_manager: Optional[ContactsManager] = None):
         self.contacts = contacts_manager or ContactsManager()
         self.sent_history = []
 
-    def _simulate_enter_press(self, delay: float = 2.5):
+    def _simulate_enter_press(self, delay: float = 3.0, is_web: bool = False):
         """
-        Waits for WhatsApp Desktop / Browser to launch and focus, then triggers Enter key.
+        Multi-stage automated window focus and Enter dispatch for WhatsApp.
+        Finds WhatsApp Desktop or Browser window, brings it to foreground, and simulates Enter.
         Runs safely in a separate daemon thread so it never blocks the main assistant event loop.
         """
         def _worker():
-            try:
-                time.sleep(delay)
-                # Primary method: Windows API keybd_event
-                ctypes.windll.user32.keybd_event(VK_RETURN, 0, 0, 0)
-                time.sleep(0.05)
-                ctypes.windll.user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
-                logger.info("⚡ Hands-Free WhatsApp: Auto-send ENTER key pressed.")
-            except Exception as e:
-                # Secondary fallback: PyAutoGUI if installed
+            # Initial wait for WhatsApp Desktop / Browser to launch & populate chat
+            time.sleep(delay)
+
+            title_kws = ["WhatsApp", "WhatsApp Web"]
+            proc_kws = ["whatsapp"]
+
+            # Multi-pulse sequence (up to 3 attempts with safe delay between)
+            for attempt in range(1, 4):
                 try:
-                    import pyautogui
-                    pyautogui.press("enter")
-                    logger.info("⚡ Hands-Free WhatsApp: Auto-send via PyAutoGUI executed.")
-                except Exception as ex:
-                    logger.debug(f"Could not simulate Enter key for WhatsApp: {e} / {ex}")
+                    hwnd = find_window_by_keywords(title_kws, proc_kws)
+                    if hwnd:
+                        bring_window_to_foreground(hwnd)
+                        time.sleep(0.2)
+                        simulate_enter()
+                        logger.info(f"⚡ Hands-Free WhatsApp: Auto-send ENTER triggered (Attempt {attempt}/3) on hwnd {hwnd}.")
+                    else:
+                        logger.debug(f"WhatsApp window not found on attempt {attempt}")
+                except Exception as e:
+                    logger.debug(f"WhatsApp auto-send error on attempt {attempt}: {e}")
+
+                if attempt < 3:
+                    time.sleep(1.8)
 
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
@@ -117,9 +123,9 @@ class WhatsAppEngine:
 
         # 3. Hands-Free Auto-Send Enter key
         if auto_send and opened_successfully:
-            # Give slightly longer delay for web browser vs native app
-            delay = 2.5 if mode_used == "native_desktop" else 4.0
-            self._simulate_enter_press(delay=delay)
+            is_web = (mode_used == "web_fallback")
+            delay = 3.0 if mode_used == "native_desktop" else 5.0
+            self._simulate_enter_press(delay=delay, is_web=is_web)
 
         # 4. Record sent log
         dispatch_record = {

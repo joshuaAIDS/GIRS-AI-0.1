@@ -602,6 +602,10 @@ class ToolRegistry:
                     "attachment_path": {
                         "type": "string",
                         "description": "Optional local file path to attach to the email."
+                    },
+                    "auto_send": {
+                        "type": "boolean",
+                        "description": "If true, automatically sends the email hands-free via SMTP or Outlook Ctrl+Enter shortcut (defaults to true)."
                     }
                 },
                 "required": ["to", "subject", "body"]
@@ -1080,9 +1084,9 @@ class ToolRegistry:
         """Dispatches a WhatsApp message."""
         return self.whatsapp.send_message(recipient=recipient, message=message, auto_send=auto_send)
 
-    def _tool_send_email(self, to: str, subject: str, body: str, attachment_path: Optional[str] = None, **kwargs) -> Dict[str, Any]:
-        """Sends an email or opens in mail client."""
-        return self.email.send_email(to=to, subject=subject, body=body, attachment_path=attachment_path)
+    def _tool_send_email(self, to: str, subject: str, body: str, attachment_path: Optional[str] = None, auto_send: bool = True, **kwargs) -> Dict[str, Any]:
+        """Sends an email or opens in mail client with hands-free auto-send."""
+        return self.email.send_email(to=to, subject=subject, body=body, attachment_path=attachment_path, auto_send=auto_send)
 
     def _tool_draft_email(self, instruction: str, recipient: Optional[str] = None, tone: str = "professional", **kwargs) -> Dict[str, Any]:
         """Drafts an email using AI."""

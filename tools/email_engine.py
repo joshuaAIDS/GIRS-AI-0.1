@@ -5,11 +5,13 @@ and automatic fallback to native Windows mail clients via mailto: protocols.
 """
 import os
 import re
+import time
 import json
 import smtplib
 import imaplib
 import email
 import logging
+import threading
 import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -21,6 +23,12 @@ from pathlib import Path
 
 import config
 from tools.contacts_manager import ContactsManager
+from tools.window_utils import (
+    find_window_by_keywords,
+    bring_window_to_foreground,
+    simulate_mail_send,
+    simulate_outlook_alt_s
+)
 
 logger = logging.getLogger("IGIRS.EmailEngine")
 
@@ -194,48 +202,100 @@ class EmailEngine:
             "recipient_email": rec_info["email"]
         }
 
-    def open_in_mail_client(self, to: str, subject: str, body: str) -> Dict[str, Any]:
+    def _simulate_mail_send(self, subject: str, initial_delay: float = 2.8):
+        """
+        Multi-stage automated window focus and Ctrl+Enter / Alt+S dispatch for Outlook / Windows Mail.
+        Finds the compose window by subject or client process, brings to front, and sends hands-free.
+        Runs safely in a separate daemon thread so it never blocks the main assistant event loop.
+        """
+        def _worker():
+            time.sleep(initial_delay)
+
+            cleaned_subj = subject[:35].strip() if subject else ""
+            title_kws = [cleaned_subj, "Outlook", "Message", "Mail", "Compose"]
+            title_kws = [k for k in title_kws if k]
+            proc_kws = ["olk", "outlook", "hxoutlook", "mailapp", "thunderbird", "applicationframehost"]
+
+            # Multi-pulse sequence (up to 3 attempts with safe interval)
+            for attempt in range(1, 4):
+                try:
+                    hwnd = find_window_by_keywords(title_kws, proc_kws)
+                    if hwnd:
+                        bring_window_to_foreground(hwnd)
+                        time.sleep(0.25)
+                        # Attempt Ctrl+Enter (primary shortcut for New Outlook / Modern Mail)
+                        simulate_mail_send()
+                        logger.info(f"⚡ Hands-Free Email: Auto-send Ctrl+Enter triggered (Attempt {attempt}/3) on hwnd {hwnd}.")
+
+                        # If attempt 2, also try Alt + S for classic Outlook
+                        if attempt == 2:
+                            time.sleep(0.3)
+                            simulate_outlook_alt_s()
+                            logger.info(f"⚡ Hands-Free Email: Alt+S fallback triggered (Attempt {attempt}/3).")
+                    else:
+                        logger.debug(f"Mail client window not found on attempt {attempt}")
+                except Exception as e:
+                    logger.debug(f"Email auto-send error on attempt {attempt}: {e}")
+
+                if attempt < 3:
+                    time.sleep(1.8)
+
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+
+    def open_in_mail_client(self, to: str, subject: str, body: str, auto_send: bool = True) -> Dict[str, Any]:
         """
         Opens the system's default email client (e.g. Windows Mail, Outlook) pre-filled via mailto:.
+        If auto_send is True, triggers hands-free Ctrl+Enter dispatch automatically.
         """
         enc_to = urllib.parse.quote(to)
         enc_sub = urllib.parse.quote(subject)
         enc_body = urllib.parse.quote(body)
         mailto_url = f"mailto:{enc_to}?subject={enc_sub}&body={enc_body}"
 
+        opened = False
         try:
             os.startfile(mailto_url)
-            return {
-                "status": "success",
-                "mode": "mailto_client",
-                "to": to,
-                "subject": subject,
-                "message": f"Opened default email client with draft for {to}."
-            }
+            opened = True
         except Exception as e:
             try:
                 import webbrowser
                 webbrowser.open(mailto_url)
-                return {
-                    "status": "success",
-                    "mode": "mailto_browser",
-                    "to": to,
-                    "subject": subject,
-                    "message": f"Opened email draft in browser for {to}."
-                }
+                opened = True
             except Exception as ex:
                 logger.error(f"Failed to open mailto URL: {ex}")
                 return {"status": "error", "message": f"Could not launch email client: {ex}"}
+
+        if opened and auto_send:
+            self._simulate_mail_send(subject=subject, initial_delay=2.8)
+
+        msg_text = f"Dispatched email to {to} in default mail client"
+        if auto_send:
+            msg_text += " with hands-free auto-send."
+        else:
+            msg_text += " as draft."
+
+        return {
+            "status": "success",
+            "mode": "mailto_client",
+            "to": to,
+            "subject": subject,
+            "auto_send": auto_send,
+            "message": msg_text,
+            "summary": f"Dispatched email to {to} regarding '{subject}'."
+        }
 
     def send_email(
         self,
         to: str,
         subject: str,
         body: str,
-        attachment_path: Optional[str] = None
+        attachment_path: Optional[str] = None,
+        auto_send: bool = True
     ) -> Dict[str, Any]:
         """
         Sends an email directly via SMTP SSL/TLS if configured, or falls back to the native mail client.
+        Supports hands-free automated sending in both modes.
         """
         rec_info = self.resolve_recipient_email(to)
         target_email = rec_info["email"]
@@ -246,11 +306,12 @@ class EmailEngine:
                 "message": f"Recipient '{to}' does not have a valid email address."
             }
 
-        # If SMTP credentials are NOT configured, launch native mail client directly
+        # If SMTP credentials are NOT configured, launch native mail client directly with hands-free send
         if not self.is_smtp_configured():
-            logger.info("SMTP credentials not configured in email_config.json. Launching native mail client.")
-            res = self.open_in_mail_client(target_email, subject, body)
-            res["summary"] = f"Opened email draft to {rec_info['name']} ({target_email}) in default mail client."
+            logger.info("SMTP credentials not configured in email_config.json. Launching native mail client with auto-send.")
+            res = self.open_in_mail_client(target_email, subject, body, auto_send=auto_send)
+            res["recipient_name"] = rec_info["name"]
+            res["summary"] = f"Dispatched email to {rec_info['name']} ({target_email}) with subject: '{subject}'."
             return res
 
         # Attempt direct SMTP dispatch
@@ -302,10 +363,11 @@ class EmailEngine:
             }
         except Exception as e:
             logger.warning(f"SMTP send failed: {e}. Opening default mail client fallback.")
-            # Graceful fallback to mail client
-            fallback_res = self.open_in_mail_client(target_email, subject, body)
+            # Graceful fallback to mail client with auto-send
+            fallback_res = self.open_in_mail_client(target_email, subject, body, auto_send=auto_send)
+            fallback_res["recipient_name"] = rec_info["name"]
             fallback_res["smtp_error"] = str(e)
-            fallback_res["summary"] = f"SMTP connection failed ({e}). Opened email draft in your default mail client instead."
+            fallback_res["summary"] = f"SMTP connection failed ({e}). Dispatched email via default mail client instead."
             return fallback_res
 
     def check_unread_emails(self, limit: int = 5) -> Dict[str, Any]:

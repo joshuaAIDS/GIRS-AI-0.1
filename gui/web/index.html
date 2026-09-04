@@ -373,9 +373,15 @@
               <input id="mailSubjectInput" type="text" placeholder="Subject line..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
               <textarea id="mailBodyInput" rows="3" placeholder="Email body or brief bullet points for AI polish..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl p-3 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans resize-none"></textarea>
               <div class="flex items-center justify-between pt-1">
-                <button onclick="executeDraftEmail()" class="px-2.5 py-1.5 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 text-xs font-medium flex items-center gap-1 transition-all active:scale-95">
-                  <span>✍️</span> AI Polish
-                </button>
+                <div class="flex items-center gap-2">
+                  <button onclick="executeDraftEmail()" class="px-2.5 py-1.5 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 text-xs font-medium flex items-center gap-1 transition-all active:scale-95">
+                    <span>✍️</span> AI Polish
+                  </button>
+                  <label class="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer select-none">
+                    <input type="checkbox" id="mailAutoSendCheck" checked class="rounded bg-slate-900 border-slate-700 text-indigo-500 focus:ring-0">
+                    <span>⚡ Auto-send hands-free</span>
+                  </label>
+                </div>
                 <div class="flex items-center gap-1.5">
                   <button onclick="executeCheckUnread()" title="Check Unread" class="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs transition-all">
                     <span>📥</span> Inbox
@@ -2389,6 +2395,7 @@
       const to = document.getElementById('mailToInput')?.value?.trim();
       const subj = document.getElementById('mailSubjectInput')?.value?.trim();
       const body = document.getElementById('mailBodyInput')?.value?.trim();
+      const autoSend = document.getElementById('mailAutoSendCheck')?.checked ?? true;
 
       if (!to) {
         alert("Please enter a recipient email or contact name.");
@@ -2404,7 +2411,7 @@
 
       if (hasBridge()) {
         try {
-          const res = await window.pywebview.api.send_email(to, subj, body);
+          const res = await window.pywebview.api.send_email(to, subj, body, null, autoSend);
           if (res && res.status === 'success') {
             appendCommDispatchBubble({
               platform: 'Email',
@@ -2412,7 +2419,8 @@
               email: res.to,
               subject: res.subject,
               body: body,
-              mode: res.mode
+              mode: res.mode,
+              auto_send: autoSend
             });
             document.getElementById('mailBodyInput').value = '';
           } else {
@@ -2423,6 +2431,19 @@
           appendAiBubble("Email error: " + e);
           setVoiceState('standby');
         }
+      } else {
+        setTimeout(() => {
+          appendCommDispatchBubble({
+            platform: 'Email',
+            recipient: to,
+            email: to,
+            subject: subj,
+            body: body,
+            mode: 'demo',
+            auto_send: autoSend
+          });
+          setVoiceState('standby');
+        }, 1000);
       }
     }
 
@@ -2539,7 +2560,7 @@
             <button onclick="respeakMessage(this)" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
               <span>🔊</span> Re-speak
             </button>
-            <span class="font-mono text-slate-500">${data.mode === 'native_desktop' ? 'Native WhatsApp Desktop' : (data.mode === 'smtp_direct' ? 'Direct SMTP' : 'Mail Client')}</span>
+            <span class="font-mono text-slate-500">${data.mode === 'native_desktop' ? (data.auto_send ? '⚡ WhatsApp Desktop (Sent)' : 'WhatsApp Desktop (Draft)') : (data.mode === 'smtp_direct' ? '⚡ Direct SMTP (Sent)' : (data.mode === 'mailto_client' ? (data.auto_send ? '⚡ Outlook Hands-Free (Sent)' : 'Mail Client (Draft)') : 'Dispatched'))}</span>
           </div>
         </div>
       `;

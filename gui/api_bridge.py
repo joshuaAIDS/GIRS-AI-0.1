@@ -521,14 +521,15 @@ class DesktopApiBridge:
             logger.error(f"Bridge send_whatsapp error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def send_email(self, to: str, subject: str, body: str, attachment_path: Optional[str] = None) -> Dict[str, Any]:
-        """Sends an email via SMTP or opens default email client."""
+    def send_email(self, to: str, subject: str, body: str, attachment_path: Optional[str] = None, auto_send: bool = True) -> Dict[str, Any]:
+        """Sends an email via SMTP or opens default email client with hands-free dispatch."""
         try:
             res = self._assistant.tools.email.send_email(
                 to=to,
                 subject=subject,
                 body=body,
-                attachment_path=attachment_path
+                attachment_path=attachment_path,
+                auto_send=auto_send
             )
             if res.get("status") == "success" and self._assistant.tts.enabled:
                 to_name = res.get("recipient_name", to)
@@ -536,7 +537,10 @@ class DesktopApiBridge:
                 if mode == "smtp_direct":
                     self._assistant.tts.speak(f"Email sent successfully to {to_name}.")
                 else:
-                    self._assistant.tts.speak(f"Opened email draft to {to_name} in your mail client.")
+                    if auto_send:
+                        self._assistant.tts.speak(f"Sent email to {to_name} regarding {subject}.")
+                    else:
+                        self._assistant.tts.speak(f"Opened email draft to {to_name} in your mail client.")
                 self.notify_state("speaking")
             return res
         except Exception as e:
