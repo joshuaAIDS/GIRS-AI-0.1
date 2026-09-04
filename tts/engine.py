@@ -134,6 +134,15 @@ class TTSEngine:
         except Exception:
             pass
 
+    def was_interrupted(self) -> bool:
+        """Returns True if the most recent speech was interrupted by voice barge-in."""
+        return getattr(self.player, "interrupted_by_barge_in", False)
+
+    def trigger_barge_in(self):
+        """Forces an instant barge-in interruption from any UI/keyboard event."""
+        if hasattr(self.player, "trigger_barge_in"):
+            self.player.trigger_barge_in()
+
     def stop(self, play_cue: bool = False):
         """Instantly stops speech."""
         self.player.stop()

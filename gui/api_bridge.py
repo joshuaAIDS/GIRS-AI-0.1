@@ -22,6 +22,18 @@ class DesktopApiBridge:
         """Called immediately when user speaks over assistant speech."""
         logger.info("Bridge: Voice Barge-In triggered, transitioning GUI to listening.")
         self.notify_state("listening")
+        if self._window:
+            try:
+                self._window.evaluate_js("if (window.onBargeInTriggered) window.onBargeInTriggered()")
+            except Exception as e:
+                logger.debug(f"Error notifying barge-in to JS: {e}")
+
+    def trigger_barge_in(self) -> bool:
+        """Manually triggers barge-in interrupt from GUI (Spacebar, Orb click)."""
+        if self._assistant and hasattr(self._assistant, "tts"):
+            self._assistant.tts.trigger_barge_in()
+        self._on_barge_in_fired()
+        return True
 
     def set_window(self, window):
         self._window = window

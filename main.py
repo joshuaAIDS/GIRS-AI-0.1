@@ -169,6 +169,12 @@ def run_continuous_voice_mode(assistant: IGIRSAssistant):
 
     assistant.stt.calibrate_microphone()
 
+    # Hook Voice Barge-In callback to immediately notify console
+    def on_barge_in_triggered():
+        print(f"\n{C_CYAN}⚡ [VOICE BARGE-IN DETECTED]{C_RESET} {C_YELLOW}Halted speech! Listening to you now...{C_RESET}")
+
+    assistant.tts.set_on_barge_in(on_barge_in_triggered)
+
     while True:
         try:
             print(f"{C_GREEN}🟢 [LISTENING...]{C_RESET}", end="\r", flush=True)
@@ -195,12 +201,13 @@ def run_continuous_voice_mode(assistant: IGIRSAssistant):
             print(f"{C_CYAN}{C_BOLD}IGIRS AI:{C_RESET}{voice_tag} {reply}\n")
 
             # Wait for speech playback while barge-in monitor is armed
-            time.sleep(0.12)
+            time.sleep(0.08)
             while assistant.tts.is_speaking():
-                time.sleep(0.05)
+                time.sleep(0.03)
 
-            # Ultra-short echo prevention pause
-            time.sleep(0.2)
+            # If interrupted by voice barge-in, skip echo pause and listen immediately!
+            if not assistant.tts.was_interrupted():
+                time.sleep(0.18)
 
         except KeyboardInterrupt:
             assistant.tts.stop()
@@ -342,6 +349,11 @@ def main():
 
     assistant = IGIRSAssistant()
     print_banner(assistant)
+
+    def global_barge_in():
+        print(f"\n{C_CYAN}⚡ [VOICE BARGE-IN DETECTED]{C_RESET} {C_YELLOW}Speech halted! Listening to you now...{C_RESET}")
+
+    assistant.tts.set_on_barge_in(global_barge_in)
 
     print(f"{C_GREEN}✔ Online & Connected to NVIDIA NIM API.{C_RESET}")
     print(f"{C_DIM}Welcome back, {assistant.memory.user_name}. Ready for voice or text commands.{C_RESET}\n")

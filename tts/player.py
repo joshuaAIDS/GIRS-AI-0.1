@@ -81,9 +81,15 @@ class AudioPlayer:
             if self.barge_in:
                 self.barge_in.stop_monitoring()
 
+    def trigger_barge_in(self):
+        """Forces an instant barge-in interrupt from any input modality."""
+        if self.is_playing():
+            self._handle_barge_in()
+
     def _handle_barge_in(self):
         """Callback fired by BargeInMonitor when user speaks over TTS."""
         logger.info("⚡ Voice Barge-In: Halting speech playback instantly.")
+        self.interrupted_by_barge_in = True
         self.stop()
         try:
             import utils.audio_cues as audio_cues
@@ -102,6 +108,7 @@ class AudioPlayer:
         Automatically arms Voice Barge-In monitoring during speech playback.
         """
         self.stop() # Interrupt any previous speech
+        self.interrupted_by_barge_in = False
         self._stop_event.clear()
 
         def _play_worker():

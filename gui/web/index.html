@@ -1454,6 +1454,14 @@
       return /\b(stop\s+(listen|listening|voice|always\s+listening|mic)|turn\s+off\s+(listening|voice)|disable\s+(listening|voice)|mute\s+mic)\b/.test(t) || t === 'stop listen' || t === 'stop listening' || t === 'stop voice';
     }
 
+    let bargeInTriggered = false;
+
+    window.onBargeInTriggered = function() {
+      console.log("⚡ Voice Barge-In Event received from python backend!");
+      bargeInTriggered = true;
+      setVoiceState('listening');
+    };
+
     async function runAlwaysListeningLoop() {
       while (isAlwaysListening) {
         try {
@@ -1478,15 +1486,20 @@
               }
 
               // Maintain animated speaking state while TTS plays (barge-in interrupts instantly)
-              await new Promise(r => setTimeout(r, 200));
+              await new Promise(r => setTimeout(r, 150));
               while (isAlwaysListening && await window.pywebview.api.is_speaking()) {
-                await new Promise(r => setTimeout(r, 60));
+                await new Promise(r => setTimeout(r, 40));
               }
-              // Fast echo recovery pause
-              await new Promise(r => setTimeout(r, 200));
+
+              // If interrupted by voice barge-in, skip echo recovery and listen immediately!
+              if (bargeInTriggered) {
+                bargeInTriggered = false;
+              } else {
+                await new Promise(r => setTimeout(r, 180));
+              }
             } else {
               // Silence or timeout: brief wait and continue listening
-              await new Promise(r => setTimeout(r, 150));
+              await new Promise(r => setTimeout(r, 120));
             }
           } else {
             // Standalone browser preview
@@ -1526,10 +1539,19 @@
             }
 
             // Keep animated speaking state while voice audio is playing
-            await new Promise(r => setTimeout(r, 400));
+            await new Promise(r => setTimeout(r, 150));
             while (await window.pywebview.api.is_speaking()) {
-              await new Promise(r => setTimeout(r, 120));
+              await new Promise(r => setTimeout(r, 40));
             }
+
+            // If user barged in during speech, immediately listen to their follow-up!
+            if (bargeInTriggered) {
+              bargeInTriggered = false;
+              console.log("Barge-in interrupted single turn - transitioning immediately to listening!");
+              setTimeout(() => triggerVoiceCycle(), 50);
+              return;
+            }
+
             setVoiceState('standby');
           } else {
             setVoiceState('standby');
@@ -1641,10 +1663,19 @@
             }
 
             // Keep animated speaking state while voice audio is playing
-            await new Promise(r => setTimeout(r, 400));
+            await new Promise(r => setTimeout(r, 150));
             while (await window.pywebview.api.is_speaking()) {
-              await new Promise(r => setTimeout(r, 120));
+              await new Promise(r => setTimeout(r, 40));
             }
+
+            // If user barged in during speech, immediately listen to their follow-up!
+            if (bargeInTriggered) {
+              bargeInTriggered = false;
+              console.log("Barge-in interrupted text response - transitioning to listening!");
+              setTimeout(() => triggerVoiceCycle(), 50);
+              return;
+            }
+
             setVoiceState('standby');
           } else {
             appendAiBubble("No response generated.");
@@ -1662,6 +1693,32 @@
           setTimeout(() => setVoiceState('standby'), 3000);
         }, 1200);
       }
+    }
+
+    // Global Key & Canvas Barge-In Listeners
+    document.addEventListener('keydown', async (e) => {
+      // If user presses Spacebar or Escape while assistant is speaking, trigger instant barge-in!
+      if ((e.code === 'Space' || e.code === 'Escape') && currentVoiceState === 'speaking') {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (activeTag !== 'input' && activeTag !== 'textarea') {
+          e.preventDefault();
+          console.log("⚡ Space/Escape Barge-In triggered!");
+          if (hasBridge()) {
+            await window.pywebview.api.trigger_barge_in();
+          }
+        }
+      }
+    });
+
+    // Clicking the 3D Orb canvas while speaking immediately barges in
+    const orbCanvasEl = document.getElementById('webglCanvas');
+    if (orbCanvasEl) {
+      orbCanvasEl.addEventListener('click', async () => {
+        if (currentVoiceState === 'speaking' && hasBridge()) {
+          console.log("⚡ 3D Orb Click Barge-In triggered!");
+          await window.pywebview.api.trigger_barge_in();
+        }
+      });
     }
 
     function appendUserBubble(text, user) {
