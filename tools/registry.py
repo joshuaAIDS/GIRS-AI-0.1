@@ -16,9 +16,10 @@ import config
 logger = logging.getLogger("IGIRS.Tools")
 
 class ToolRegistry:
-    def __init__(self, memory_manager=None, llm_client=None):
+    def __init__(self, memory_manager=None, llm_client=None, tts_engine=None):
         self.memory_manager = memory_manager
         self.llm_client = llm_client
+        self.tts_engine = tts_engine
         self.tools: Dict[str, Dict[str, Any]] = {}
         self.handlers: Dict[str, Callable] = {}
         self._register_default_tools()
@@ -201,6 +202,171 @@ class ToolRegistry:
                 "properties": {}
             },
             handler=self._tool_daily_briefing
+        )
+
+        # 10. Hardware: Set Volume
+        self.register(
+            name="set_volume",
+            description="Set the master computer speaker volume to an exact percentage from 0 to 100. Call when the user says 'set volume to 50%', 'volume 80', 'change volume to 30%', etc.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "level_percent": {
+                        "type": "integer",
+                        "description": "The volume percentage to set between 0 and 100."
+                    }
+                },
+                "required": ["level_percent"]
+            },
+            handler=self._tool_set_volume
+        )
+
+        # 11. Hardware: Relative Volume Adjustment
+        self.register(
+            name="change_volume_relative",
+            description="Increase or decrease the master speaker volume by a delta percentage. Call when the user says 'volume up', 'volume down', 'louder', 'turn it down', 'decrease volume'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "delta_percent": {
+                        "type": "integer",
+                        "description": "Positive integer to increase volume (e.g. 10 or 20) or negative integer to decrease volume (e.g. -10 or -20)."
+                    }
+                },
+                "required": ["delta_percent"]
+            },
+            handler=self._tool_change_volume_relative
+        )
+
+        # 12. Hardware: Mute / Unmute Audio
+        self.register(
+            name="mute_volume",
+            description="Mute or unmute the master computer audio. Call when user says 'mute audio', 'mute sound', 'unmute', 'turn audio back on'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "mute": {
+                        "type": "boolean",
+                        "description": "True to mute audio, False to unmute."
+                    }
+                },
+                "required": ["mute"]
+            },
+            handler=self._tool_mute_volume
+        )
+
+        # 13. Hardware: Get Volume
+        self.register(
+            name="get_volume",
+            description="Check current computer volume level and mute status. Call when user asks 'what is the volume', 'how loud is it'.",
+            parameters={
+                "type": "object",
+                "properties": {}
+            },
+            handler=self._tool_get_volume
+        )
+
+        # 14. Hardware: Set Screen Brightness
+        self.register(
+            name="set_brightness",
+            description="Set the monitor or screen brightness to an exact percentage from 0 to 100. Call when user says 'set brightness to 70%', 'dim screen', 'screen brightness 100%', 'increase brightness'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "level_percent": {
+                        "type": "integer",
+                        "description": "Target screen brightness percentage between 0 and 100."
+                    }
+                },
+                "required": ["level_percent"]
+            },
+            handler=self._tool_set_brightness
+        )
+
+        # 15. Hardware: Get Screen Brightness
+        self.register(
+            name="get_brightness",
+            description="Check current display brightness percentage. Call when user asks 'what is the screen brightness', 'check brightness'.",
+            parameters={
+                "type": "object",
+                "properties": {}
+            },
+            handler=self._tool_get_brightness
+        )
+
+        # 16. Productivity: Take Screenshot
+        self.register(
+            name="take_screenshot",
+            description="Capture a full screenshot of the screen and save it to the user's Pictures/Screenshots folder. Call when user says 'take a screenshot', 'capture screen', 'screenshot this'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "Optional custom filename for the screenshot."
+                    }
+                }
+            },
+            handler=self._tool_take_screenshot
+        )
+
+        # 17. System: Lock Workstation
+        self.register(
+            name="lock_workstation",
+            description="Lock the Windows computer or PC immediately. Call when user says 'lock my pc', 'lock computer', 'lock workstation', 'lock screen'.",
+            parameters={
+                "type": "object",
+                "properties": {}
+            },
+            handler=self._tool_lock_workstation
+        )
+
+        # 18. System: Minimize All Windows
+        self.register(
+            name="minimize_all_windows",
+            description="Minimize all open application windows and show the Windows desktop. Call when user says 'minimize windows', 'minimize all', 'show desktop', 'go to desktop'.",
+            parameters={
+                "type": "object",
+                "properties": {}
+            },
+            handler=self._tool_minimize_windows
+        )
+
+        # 19. Productivity: Background Voice Timer
+        self.register(
+            name="set_timer",
+            description="Set a background countdown timer that plays a chime and announces when elapsed. Call when user says 'set a timer for 5 minutes', 'timer 30 seconds', 'remind me in 10 minutes'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "seconds": {
+                        "type": "integer",
+                        "description": "Timer duration in seconds."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Optional label or description for the timer (e.g. 'Pasta', 'Break', 'Meeting')."
+                    }
+                },
+                "required": ["seconds"]
+            },
+            handler=self._tool_set_timer
+        )
+
+        # 20. Productivity: Live Weather
+        self.register(
+            name="get_live_weather",
+            description="Get real-time live weather, temperature, humidity, and condition for a specific city or current location. Call when user asks 'what is the weather', 'weather in Chennai', 'is it raining', 'temperature outside'.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "city": {
+                        "type": "string",
+                        "description": "Optional name of the city or location (e.g. 'Chennai', 'San Francisco', 'London'). Omit to check local weather."
+                    }
+                }
+            },
+            handler=self._tool_get_weather
         )
 
     # ------------------ TOOL IMPLEMENTATIONS ------------------
@@ -386,33 +552,80 @@ class ToolRegistry:
 
     def _tool_daily_briefing(self, **kwargs) -> Dict[str, Any]:
         """Compiles a complete morning / daily status report."""
-        now = datetime.now()
+        import tools.productivity as productivity
         telemetry = self._tool_system_telemetry()
         notes_data = self._tool_manage_notes(action="list")
         active_notes = notes_data.get("notes", [])
-
-        # Fetch live weather if reachable
-        weather_summary = "Weather currently unavailable"
-        try:
-            req = urllib.request.Request(
-                "https://wttr.in/?format=%C+%t+(Humidity:+%h)",
-                headers={"User-Agent": "curl/7.68.0"}
-            )
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                weather_summary = resp.read().decode("utf-8").strip()
-        except Exception:
-            pass
-
-        recent_notes = [n.get("note", "") for n in active_notes[-3:]] if active_notes else ["No pending notes."]
         user_name = self.memory_manager.user_name if self.memory_manager else "Joshua"
+        return productivity.get_daily_briefing(
+            user_name=user_name,
+            telemetry=telemetry,
+            notes=active_notes
+        )
 
-        return {
-            "greeting": f"Good day, {user_name}!",
-            "date": now.strftime("%A, %B %d, %Y"),
-            "time": now.strftime("%I:%M %p"),
-            "weather": weather_summary,
-            "battery": f"{telemetry.get('battery_percent', 'N/A')} ({telemetry.get('battery_power_plugged', '')})",
-            "cpu_load": telemetry.get("cpu_usage_percent", "N/A"),
-            "notes": recent_notes
-        }
+    # --- Phase 1: Hardware & System Handlers ---
+
+    def _tool_set_volume(self, level_percent: int = 50, **kwargs) -> Dict[str, Any]:
+        """Sets master computer volume."""
+        import tools.system_controls as system_controls
+        return system_controls.set_volume(level_percent=level_percent)
+
+    def _tool_change_volume_relative(self, delta_percent: int = 10, **kwargs) -> Dict[str, Any]:
+        """Adjusts volume up or down relatively."""
+        import tools.system_controls as system_controls
+        return system_controls.change_volume_relative(delta_percent=delta_percent)
+
+    def _tool_mute_volume(self, mute: bool = True, **kwargs) -> Dict[str, Any]:
+        """Mutes or unmutes system audio."""
+        import tools.system_controls as system_controls
+        return system_controls.mute_volume(mute=mute)
+
+    def _tool_get_volume(self, **kwargs) -> Dict[str, Any]:
+        """Gets current volume."""
+        import tools.system_controls as system_controls
+        return system_controls.get_volume()
+
+    def _tool_set_brightness(self, level_percent: int = 70, **kwargs) -> Dict[str, Any]:
+        """Sets screen brightness."""
+        import tools.system_controls as system_controls
+        return system_controls.set_brightness(level_percent=level_percent)
+
+    def _tool_get_brightness(self, **kwargs) -> Dict[str, Any]:
+        """Gets screen brightness."""
+        import tools.system_controls as system_controls
+        return system_controls.get_brightness()
+
+    def _tool_take_screenshot(self, filename: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        """Captures screenshot and saves to Pictures/Screenshots."""
+        import tools.system_controls as system_controls
+        return system_controls.take_screenshot(filename=filename)
+
+    def _tool_lock_workstation(self, **kwargs) -> Dict[str, Any]:
+        """Locks the Windows computer."""
+        import tools.system_controls as system_controls
+        return system_controls.lock_workstation()
+
+    def _tool_minimize_windows(self, **kwargs) -> Dict[str, Any]:
+        """Minimizes open windows to show desktop."""
+        import tools.system_controls as system_controls
+        return system_controls.minimize_all_windows()
+
+    # --- Phase 1: Productivity Handlers ---
+
+    def _tool_set_timer(self, seconds: int, label: str = "Timer", **kwargs) -> Dict[str, Any]:
+        """Sets a background countdown voice timer."""
+        import tools.productivity as productivity
+        user_name = self.memory_manager.user_name if self.memory_manager else "Joshua"
+        tts_cb = self.tts_engine.speak if self.tts_engine else None
+        return productivity.set_timer(
+            seconds=seconds,
+            label=label,
+            user_name=user_name,
+            tts_callback=tts_cb
+        )
+
+    def _tool_get_weather(self, city: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        """Gets real-time weather."""
+        import tools.productivity as productivity
+        return productivity.get_live_weather(city=city)
 

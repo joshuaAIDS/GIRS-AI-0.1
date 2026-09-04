@@ -32,8 +32,8 @@ class IGIRSAssistant:
     def __init__(self):
         self.memory = MemoryManager()
         self.llm = NvidiaLLMClient()
-        self.tools = ToolRegistry(memory_manager=self.memory, llm_client=self.llm)
         self.tts = TTSEngine(memory_manager=self.memory)
+        self.tools = ToolRegistry(memory_manager=self.memory, llm_client=self.llm, tts_engine=self.tts)
         self.stt = VoiceListener()
         self.wake_word = WakeWordDetector()
         logger.info(f"Initialized {config.ASSISTANT_NAME} for {self.memory.user_name}")
@@ -110,13 +110,55 @@ class IGIRSAssistant:
         if any(w in text for w in ["briefing", "daily briefing", "morning briefing", "status report", "brief me", "good morning"]):
             selected_tool_names.add("get_daily_briefing")
 
-        # 5. Remember Fact
+        # 8. Remember Fact
         if re.search(r"\b(remember that|my favorite|i live in|my name is)\b", text):
             selected_tool_names.add("remember_user_fact")
 
-        # 6. Web Search (Explicit search commands)
+        # 9. Web Search (Explicit search commands)
         if re.search(r"\b(search for|search the web|search web|google|look up|who is|latest news on)\b", text):
             selected_tool_names.add("web_search")
+
+        # --- Phase 1: Hardware & System Controls ---
+
+        # 10. Volume & Sound
+        if re.search(r"\b(volume|sound|louder|quieter|turn it up|turn it down|mute|unmute)\b", text):
+            if "mute" in text or "unmute" in text:
+                selected_tool_names.add("mute_volume")
+            elif any(w in text for w in ["what", "check", "how high", "level"]) and "volume" in text:
+                selected_tool_names.add("get_volume")
+            else:
+                selected_tool_names.add("set_volume")
+                selected_tool_names.add("change_volume_relative")
+
+        # 11. Screen Brightness
+        if re.search(r"\b(brightness|dim the screen|dim screen|brighten screen)\b", text):
+            if any(w in text for w in ["what", "check", "level"]) and "brightness" in text:
+                selected_tool_names.add("get_brightness")
+            else:
+                selected_tool_names.add("set_brightness")
+                selected_tool_names.add("get_brightness")
+
+        # 12. Screenshot
+        if re.search(r"\b(screenshot|capture screen|screen capture|take a snap|snap the screen)\b", text):
+            selected_tool_names.add("take_screenshot")
+
+        # 13. Lock Workstation
+        if re.search(r"\b(lock (the )?(pc|computer|workstation|laptop|screen)|lock my (pc|computer|laptop))\b", text):
+            selected_tool_names.add("lock_workstation")
+
+        # 14. Minimize Windows / Show Desktop
+        if re.search(r"\b(minimize (all|windows)|show desktop|go to desktop|clear screen)\b", text):
+            selected_tool_names.add("minimize_all_windows")
+
+        # --- Phase 1: Productivity ---
+
+        # 15. Voice Timers & Alarms
+        if re.search(r"\b(timer|alarm|countdown|remind me in)\b", text):
+            selected_tool_names.add("set_timer")
+
+        # 16. Live Weather & Forecast
+        if re.search(r"\b(weather|temperature|forecast|is it raining|will it rain|how hot|how cold)\b", text):
+            selected_tool_names.add("get_live_weather")
 
         if not selected_tool_names:
             return None
